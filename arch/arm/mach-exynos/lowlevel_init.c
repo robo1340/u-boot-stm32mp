@@ -49,10 +49,6 @@ enum {
 };
 
 #ifdef CONFIG_EXYNOS5420
-
-/* Address for relocating helper code (Last 4 KB of IRAM) */
-#define EXYNOS_RELOCATE_CODE_BASE	(CONFIG_IRAM_TOP - 0x1000)
-
 /*
  * Power up secondary CPUs.
  */
@@ -60,7 +56,7 @@ static void secondary_cpu_start(void)
 {
 	v7_enable_smp(EXYNOS5420_INFORM_BASE);
 	svc32_mode_en();
-	branch_bx(EXYNOS_RELOCATE_CODE_BASE);
+	branch_bx(CONFIG_EXYNOS_RELOCATE_CODE_BASE);
 }
 
 /*
@@ -157,7 +153,7 @@ static void power_down_core(void)
 static void secondary_cores_configure(void)
 {
 	/* Clear secondary boot iRAM base */
-	writel(0x0, (EXYNOS_RELOCATE_CODE_BASE + 0x1C));
+	writel(0x0, (CONFIG_EXYNOS_RELOCATE_CODE_BASE + 0x1C));
 
 	/* set lowpower flag and address */
 	writel(CPU_RST_FLAG_VAL, CONFIG_LOWPOWER_FLAG);
@@ -222,7 +218,7 @@ int do_lowlevel_init(void)
 	if (actions & DO_CLOCKS) {
 		system_clock_init();
 #ifdef CONFIG_DEBUG_UART
-#if (defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_SERIAL)) || \
+#if (defined(CONFIG_SPL_BUILD) && defined(CONFIG_SPL_SERIAL_SUPPORT)) || \
     !defined(CONFIG_SPL_BUILD)
 		exynos_pinmux_config(PERIPH_ID_UART3, PINMUX_FLAG_NONE);
 		debug_uart_init();

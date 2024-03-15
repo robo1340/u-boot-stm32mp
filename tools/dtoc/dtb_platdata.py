@@ -62,7 +62,6 @@ VAL_PREFIX = 'dtv_'
 # a phandle property.
 PHANDLE_PROPS = {
     'clocks': '#clock-cells',
-    'interrupts-extended': '#interrupt-cells',
     'gpios': '#gpio-cells',
     'sandbox,emul': '#emul-cells',
     }
@@ -72,7 +71,7 @@ class Ftype(IntEnum):
 
 
 # This holds information about each type of output file dtoc can create
-# ftype: Type of file (Ftype)
+# type: Type of file (Ftype)
 # fname: Filename excluding directory, e.g. 'dt-plat.c'
 # hdr_comment: Comment explaining the purpose of the file
 OutputFile = collections.namedtuple('OutputFile',

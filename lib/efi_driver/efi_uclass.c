@@ -71,15 +71,6 @@ static efi_status_t EFIAPI efi_uc_supported(
 	EFI_ENTRY("%p, %p, %ls", this, controller_handle,
 		  efi_dp_str(remaining_device_path));
 
-	/*
-	 * U-Boot internal devices install protocols interfaces without calling
-	 * ConnectController(). Hence we should not bind an extra driver.
-	 */
-	if (controller_handle->dev) {
-		ret = EFI_UNSUPPORTED;
-		goto out;
-	}
-
 	ret = EFI_CALL(systab.boottime->open_protocol(
 			controller_handle, bp->ops->protocol,
 			&interface, this->driver_binding_handle,
@@ -317,7 +308,7 @@ efi_status_t efi_driver_init(void)
 	log_debug("Initializing EFI driver framework\n");
 	for (drv = ll_entry_start(struct driver, driver);
 	     drv < ll_entry_end(struct driver, driver); ++drv) {
-		if (drv->id == UCLASS_EFI_LOADER) {
+		if (drv->id == UCLASS_EFI) {
 			ret = efi_add_driver(drv);
 			if (ret != EFI_SUCCESS) {
 				log_err("Failed to add EFI driver %s\n",
@@ -337,7 +328,7 @@ efi_status_t efi_driver_init(void)
  */
 static int efi_uc_init(struct uclass *class)
 {
-	log_debug("Initializing UCLASS_EFI_LOADER\n");
+	log_debug("Initializing UCLASS_EFI\n");
 	return 0;
 }
 
@@ -349,13 +340,13 @@ static int efi_uc_init(struct uclass *class)
  */
 static int efi_uc_destroy(struct uclass *class)
 {
-	log_debug("Destroying UCLASS_EFI_LOADER\n");
+	log_debug("Destroying UCLASS_EFI\n");
 	return 0;
 }
 
 UCLASS_DRIVER(efi) = {
 	.name		= "efi",
-	.id		= UCLASS_EFI_LOADER,
+	.id		= UCLASS_EFI,
 	.init		= efi_uc_init,
 	.destroy	= efi_uc_destroy,
 };

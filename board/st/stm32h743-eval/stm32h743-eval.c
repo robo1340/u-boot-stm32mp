@@ -36,6 +36,11 @@ int dram_init_banksize(void)
 	return 0;
 }
 
+u32 get_board_rev(void)
+{
+	return 0;
+}
+
 int board_init(void)
 {
 	return 0;

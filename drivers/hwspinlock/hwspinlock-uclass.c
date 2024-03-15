@@ -24,8 +24,8 @@ hwspinlock_dev_ops(struct udevice *dev)
 static int hwspinlock_of_xlate_default(struct hwspinlock *hws,
 				       struct ofnode_phandle_args *args)
 {
-	if (args->args_count > 2) {
-		debug("Invalid args_count: %d\n", args->args_count);
+	if (args->args_count > 1) {
+		debug("Invaild args_count: %d\n", args->args_count);
 		return -EINVAL;
 	}
 

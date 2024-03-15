@@ -123,7 +123,10 @@ Device (PCI0)
             }
         })
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA)
+        {
+            Return (STA_VISIBLE)
+        }
     }
 
     Device (SDHC)
@@ -135,7 +138,10 @@ Device (PCI0)
         })
         Name (PSTS, Zero)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Method (_PS3, 0, NotSerialized)
         {
@@ -162,7 +168,10 @@ Device (PCI0)
                 GPIO
             })
 
-            Name (_STA, STA_VISIBLE)
+            Method (_STA)
+            {
+                Return (STA_VISIBLE)
+            }
 
             Method (_RMV, 0, NotSerialized)
             {
@@ -194,8 +203,10 @@ Device (PCI0)
         Device (BRC2)
         {
             Name (_ADR, 0x02)
-
-            Name (_STA, STA_VISIBLE)
+            Method (_STA, 0, NotSerialized)
+            {
+                Return (STA_VISIBLE)
+            }
 
             Method (_RMV, 0, NotSerialized)
             {
@@ -246,14 +257,20 @@ Device (PCI0)
             }
         })
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
     }
 
     Device (I2C1)
     {
         Name (_ADR, 0x00080000)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Name (SSCN, Package ()
         {
@@ -286,7 +303,10 @@ Device (PCI0)
     {
         Name (_ADR, 0x00090001)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Name (SSCN, Package ()
         {
@@ -308,7 +328,10 @@ Device (PCI0)
     {
         Name (_ADR, 0x000c0000)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Name (AVBL, Zero)
         Method (_REG, 2, NotSerialized)
@@ -338,7 +361,10 @@ Device (PCI0)
             ^IPC1.PMIC
         })
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Device (RHUB)
         {
@@ -378,14 +404,20 @@ Device (PCI0)
     {
         Name (_ADR, 0x00170000)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
     }
 
     Device (HSU0)
     {
         Name (_ADR, 0x00040001)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Device (BTH0)
         {
@@ -396,7 +428,10 @@ Device (PCI0)
                 HSU0
             })
 
-            Name (_STA, STA_VISIBLE)
+            Method (_STA, 0, NotSerialized)
+            {
+                Return (STA_VISIBLE)
+            }
 
             Name (RBUF, ResourceTemplate()
             {
@@ -431,7 +466,10 @@ Device (PCI0)
     {
         Name (_ADR, 0x00130000)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Device (PMIC)
         {
@@ -443,7 +481,10 @@ Device (PCI0)
                 IPC1
             })
 
-            Name (_STA, STA_VISIBLE)
+            Method (_STA, 0, NotSerialized)
+            {
+                Return (STA_VISIBLE)
+            }
 
             Name (RBUF, ResourceTemplate()
             {
@@ -513,7 +554,10 @@ Device (PCI0)
         Name (_ADR, 0x00150000)
         Name (_UID, Zero)
 
-        Name (_STA, STA_VISIBLE)
+        Method (_STA, 0, NotSerialized)
+        {
+            Return (STA_VISIBLE)
+        }
 
         Name (RBUF, ResourceTemplate ()
         {
@@ -550,5 +594,8 @@ Device (FLIS)
         Return (RBUF)
     }
 
-    Name (_STA, STA_VISIBLE)
+    Method (_STA, 0, NotSerialized)
+    {
+        Return (STA_VISIBLE)
+    }
 }

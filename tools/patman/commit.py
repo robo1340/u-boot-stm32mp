@@ -28,11 +28,10 @@ class Commit:
             key: rtag type (e.g. 'Reviewed-by')
             value: Set of people who gave that rtag, each a name/email string
         warn: List of warnings for this commit, each a str
-        patch (str): Filename of the patch file for this commit
     """
     def __init__(self, hash):
         self.hash = hash
-        self.subject = ''
+        self.subject = None
         self.tags = []
         self.changes = {}
         self.cc_list = []
@@ -41,12 +40,11 @@ class Commit:
         self.change_id = None
         self.rtags = collections.defaultdict(set)
         self.warn = []
-        self.patch = ''
 
     def __str__(self):
         return self.subject
 
-    def add_change(self, version, info):
+    def AddChange(self, version, info):
         """Add a new change line to the change list for a version.
 
         Args:
@@ -57,7 +55,7 @@ class Commit:
             self.changes[version] = []
         self.changes[version].append(info)
 
-    def check_tags(self):
+    def CheckTags(self):
         """Create a list of subject tags in the commit
 
         Subject tags look like this:
@@ -80,7 +78,7 @@ class Commit:
                 str = m.group(2)
         return None
 
-    def add_cc(self, cc_list):
+    def AddCc(self, cc_list):
         """Add a list of people to Cc when we send this patch.
 
         Args:
@@ -88,7 +86,7 @@ class Commit:
         """
         self.cc_list += cc_list
 
-    def check_duplicate_signoff(self, signoff):
+    def CheckDuplicateSignoff(self, signoff):
         """Check a list of signoffs we have send for this patch
 
         Args:
@@ -101,7 +99,7 @@ class Commit:
         self.signoff_set.add(signoff)
         return True
 
-    def add_rtag(self, rtag_type, who):
+    def AddRtag(self, rtag_type, who):
         """Add a response tag to a commit
 
         Args:

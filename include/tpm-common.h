@@ -120,16 +120,6 @@ struct tpm_ops {
 	int (*get_desc)(struct udevice *dev, char *buf, int size);
 
 	/**
-	 * report_state() - Collect information about the current TPM state
-	 *
-	 * @dev:	Device to check
-	 * @buf:	Buffer to put the string
-	 * @size:	Maximum size of buffer
-	 * Return: return code of the operation (0 = success)
-	 */
-	int (*report_state)(struct udevice *dev, char *buf, int size);
-
-	/**
 	 * send() - send data to the TPM
 	 *
 	 * @dev:	Device to talk to
@@ -230,7 +220,7 @@ int tpm_close(struct udevice *dev);
  * tpm_clear_and_reenable() - Force clear the TPM and reenable it
  *
  * @dev: TPM device
- * Return: 0 on success, -ve on failure
+ * @return 0 on success, -ve on failure
  */
 u32 tpm_clear_and_reenable(struct udevice *dev);
 
@@ -240,19 +230,9 @@ u32 tpm_clear_and_reenable(struct udevice *dev);
  * @dev:	Device to check
  * @buf:	Buffer to put the string
  * @size:	Maximum size of buffer
- * Return: length of string, or -ENOSPC it no space
+ * @return length of string, or -ENOSPC it no space
  */
 int tpm_get_desc(struct udevice *dev, char *buf, int size);
-
-/**
- * tpm_report_state() - Collect information about the current TPM state
- *
- * @dev:	Device to check
- * @buf:	Buffer to put the string
- * @size:	Maximum size of buffer
- * Return: return code of the operation (0 = success)
- */
-int tpm_report_state(struct udevice *dev, char *buf, int size);
 
 /**
  * tpm_xfer() - send data to the TPM and get response
@@ -283,14 +263,14 @@ int tpm_xfer(struct udevice *dev, const u8 *sendbuf, size_t send_size,
  * Initialize TPM device.  It must be called before any TPM commands.
  *
  * @dev - TPM device
- * Return: 0 on success, non-0 on error.
+ * @return 0 on success, non-0 on error.
  */
 int tpm_init(struct udevice *dev);
 
 /**
  * Retrieve the array containing all the v1 (resp. v2) commands.
  *
- * Return: a struct cmd_tbl array.
+ * @return a struct cmd_tbl array.
  */
 #if defined(CONFIG_TPM_V1)
 struct cmd_tbl *get_tpm1_commands(unsigned int *size);
@@ -316,7 +296,7 @@ static inline struct cmd_tbl *get_tpm2_commands(unsigned int *size)
  * it supports.
  *
  * @dev: TPM device
- * Return: version number (TPM_V1 or TPMV2)
+ * @return version number (TPM_V1 or TPMV2)
  */
 enum tpm_version tpm_get_version(struct udevice *dev);
 

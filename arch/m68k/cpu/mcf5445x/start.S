@@ -10,6 +10,8 @@
 #include <common.h>
 #include <asm-offsets.h>
 #include <config.h>
+#include <timestamp.h>
+#include "version.h"
 #include <asm/cache.h>
 
 #define _START	_start
@@ -44,16 +46,16 @@ _vectors:
 
 INITSP:	.long	0			/* Initial SP	*/
 #ifdef CONFIG_CF_SBF
-INITPC:	.long	ASM_DRAMINIT		/* Initial PC	*/
+INITPC:	.long	ASM_DRAMINIT		/* Initial PC 	*/
 #endif
 #ifdef CONFIG_SYS_NAND_BOOT
-INITPC:	.long	ASM_DRAMINIT_N		/* Initial PC	*/
+INITPC:	.long	ASM_DRAMINIT_N		/* Initial PC 	*/
 #endif
 
 #else
 
 INITSP:	.long	0			/* Initial SP	*/
-INITPC:	.long	_START			/* Initial PC	*/
+INITPC:	.long	_START			/* Initial PC 	*/
 
 #endif
 
@@ -608,4 +610,7 @@ _int_handler:
 
 /******************************************************************************/
 
+.globl version_string
+version_string:
+.ascii U_BOOT_VERSION_STRING, "\0"
 .align 4

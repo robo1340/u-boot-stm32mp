@@ -17,8 +17,6 @@ struct cmd_tbl;
 #define FS_TYPE_UBIFS	4
 #define FS_TYPE_BTRFS	5
 #define FS_TYPE_SQUASHFS 6
-#define FS_TYPE_EROFS   7
-#define FS_TYPE_SEMIHOSTING 8
 
 struct blk_desc;
 
@@ -29,7 +27,7 @@ struct blk_desc;
  * @flag: Command flags (CMD_FLAG_...)
  * @argc: Number of arguments
  * @argv: List of arguments
- * Return: result (see enum command_ret_t)
+ * @return result (see enum command_ret_t)
  */
 int do_fat_fsload(struct cmd_tbl *cmdtp, int flag, int argc,
 		  char *const argv[]);
@@ -41,12 +39,12 @@ int do_fat_fsload(struct cmd_tbl *cmdtp, int flag, int argc,
  * @flag: Command flags (CMD_FLAG_...)
  * @argc: Number of arguments
  * @argv: List of arguments
- * Return: result (see enum command_ret_t)
+ * @return result (see enum command_ret_t)
  */
 int do_ext2load(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
 
 /*
- * Tell the fs layer which block device and partition to use for future
+ * Tell the fs layer which block device an partition to use for future
  * commands. This also internally identifies the filesystem that is present
  * within the partition. The identification process may be limited to a
  * specific filesystem type by passing FS_* in the fstype parameter.
@@ -56,17 +54,6 @@ int do_ext2load(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
  * no known filesystem type could be recognized on it.
  */
 int fs_set_blk_dev(const char *ifname, const char *dev_part_str, int fstype);
-
-/**
- * fs_set_type() - Tell fs layer which filesystem type is used
- *
- * This is needed when reading from a non-block device such as sandbox. It does
- * a similar job to fs_set_blk_dev() but just sets the filesystem type instead
- * of detecting it and loading it on the block device
- *
- * @type: Filesystem type to use (FS_TYPE...)
- */
-void fs_set_type(int type);
 
 /*
  * fs_set_blk_dev_with_part - Set current block device + partition
@@ -131,7 +118,7 @@ int fs_exists(const char *filename);
  *
  * @filename: Name of the file
  * @size: Size of file
- * Return: 0 if ok with valid *size, negative on error
+ * @return 0 if ok with valid *size, negative on error
  */
 int fs_size(const char *filename, loff_t *size);
 
@@ -174,8 +161,6 @@ int fs_write(const char *filename, ulong addr, loff_t offset, loff_t len,
 #define FS_DT_REG  8         /* regular file */
 #define FS_DT_LNK  10        /* symbolic link */
 
-#define FS_DIRENT_NAME_LEN 256
-
 /**
  * struct fs_dirent - directory entry
  *
@@ -196,7 +181,7 @@ struct fs_dirent {
 	/** change_time:	time of last modification */
 	struct rtc_time change_time;
 	/** name:		file name */
-	char name[FS_DIRENT_NAME_LEN];
+	char name[256];
 };
 
 /* Note: fs_dir_stream should be treated as opaque to the user of fs layer */
@@ -210,7 +195,7 @@ struct fs_dir_stream {
  * fs_opendir - Open a directory
  *
  * @filename: the path to directory to open
- * Return: a pointer to the directory stream or NULL on error and errno
+ * @return a pointer to the directory stream or NULL on error and errno
  *    set appropriately
  */
 struct fs_dir_stream *fs_opendir(const char *filename);
@@ -224,7 +209,7 @@ struct fs_dir_stream *fs_opendir(const char *filename);
  * longer valid.
  *
  * @dirs: the directory stream
- * Return: the next directory entry (only valid until next fs_readdir() or
+ * @return the next directory entry (only valid until next fs_readdir() or
  *    fs_closedir() call, do not attempt to free()) or NULL if the end of
  *    the directory is reached.
  */
@@ -243,7 +228,7 @@ void fs_closedir(struct fs_dir_stream *dirs);
  * If a given name is a directory, it will be deleted only if it's empty
  *
  * @filename: Name of file or directory to delete
- * Return: 0 on success, -1 on error conditions
+ * @return 0 on success, -1 on error conditions
  */
 int fs_unlink(const char *filename);
 
@@ -251,7 +236,7 @@ int fs_unlink(const char *filename);
  * fs_mkdir - Create a directory
  *
  * @filename: Name of directory to create
- * Return: 0 on success, -1 on error conditions
+ * @return 0 on success, -1 on error conditions
  */
 int fs_mkdir(const char *filename);
 
@@ -296,7 +281,7 @@ int do_fs_type(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[]);
  * @flag: Command flags (CMD_FLAG_...)
  * @argc: Number of arguments
  * @argv: List of arguments
- * Return: result (see enum command_ret_t)
+ * @return result (see enum command_ret_t)
  */
 int do_fs_types(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]);
 

@@ -24,8 +24,6 @@ enum cbfs_filetype {
 	CBFS_TYPE_CBFSHEADER = 0x02,
 	CBFS_TYPE_STAGE = 0x10,
 	CBFS_TYPE_PAYLOAD = 0x20,
-	CBFS_TYPE_SELF = CBFS_TYPE_PAYLOAD,
-
 	CBFS_TYPE_FIT = 0x21,
 	CBFS_TYPE_OPTIONROM = 0x30,
 	CBFS_TYPE_BOOTSPLASH = 0x40,
@@ -122,47 +120,6 @@ struct cbfs_file_attr_hash {
 	u8  hash_data[];
 } __packed;
 
-/*** Component sub-headers ***/
-
-/* Following are component sub-headers for the "standard" component types */
-
-/**
- * struct cbfs_stage - sub-header for stage components
- *
- * Stages are loaded by coreboot during the normal boot process
- */
-struct cbfs_stage {
-	u32 compression;  /** Compression type */
-	u64 entry;  /** entry point */
-	u64 load;   /** Where to load in memory */
-	u32 len;          /** length of data to load */
-	u32 memlen;	   /** total length of object in memory */
-} __packed;
-
-/**
- * struct cbfs_payload_segment - sub-header for payload components
- *
- * Payloads are loaded by coreboot at the end of the boot process
- */
-struct cbfs_payload_segment {
-	u32 type;
-	u32 compression;
-	u32 offset;
-	u64 load_addr;
-	u32 len;
-	u32 mem_len;
-} __packed;
-
-struct cbfs_payload {
-	struct cbfs_payload_segment segments;
-};
-
-#define PAYLOAD_SEGMENT_CODE   0x45444F43
-#define PAYLOAD_SEGMENT_DATA   0x41544144
-#define PAYLOAD_SEGMENT_BSS    0x20535342
-#define PAYLOAD_SEGMENT_PARAMS 0x41524150
-#define PAYLOAD_SEGMENT_ENTRY  0x52544E45
-
 struct cbfs_cachenode {
 	struct cbfs_cachenode *next;
 	void *data;
@@ -179,14 +136,14 @@ struct cbfs_cachenode {
  * file_cbfs_error() - Return a string describing the most recent error
  * condition.
  *
- * Return: A pointer to the constant string.
+ * @return A pointer to the constant string.
  */
 const char *file_cbfs_error(void);
 
 /**
  * cbfs_get_result() - Get the result of the last CBFS operation
  *
- *Return: last result
+ *@return last result
  */
 enum cbfs_result cbfs_get_result(void);
 
@@ -194,21 +151,21 @@ enum cbfs_result cbfs_get_result(void);
  * file_cbfs_init() - Initialize the CBFS driver and load metadata into RAM.
  *
  * @end_of_rom: Points to the end of the ROM the CBFS should be read from
- * Return: 0 if OK, -ve on error
+ * @return 0 if OK, -ve on error
  */
 int file_cbfs_init(ulong end_of_rom);
 
 /**
  * file_cbfs_get_header() - Get the header structure for the current CBFS.
  *
- * Return: A pointer to the constant structure, or NULL if there is none.
+ * @return A pointer to the constant structure, or NULL if there is none.
  */
 const struct cbfs_header *file_cbfs_get_header(void);
 
 /**
  * cbfs_get_first() - Get the first file in a CBFS
  *
- * Return: pointer to first file, or NULL if it is empty
+ * @return pointer to first file, or NULL if it is empty
  */
 const struct cbfs_cachenode *cbfs_get_first(const struct cbfs_priv *priv);
 
@@ -223,7 +180,7 @@ void cbfs_get_next(const struct cbfs_cachenode **filep);
 /**
  * file_cbfs_get_first() - Get a handle for the first file in CBFS.
  *
- * Return: A handle for the first file in CBFS, NULL on error.
+ * @return A handle for the first file in CBFS, NULL on error.
  */
 const struct cbfs_cachenode *file_cbfs_get_first(void);
 
@@ -239,7 +196,7 @@ void file_cbfs_get_next(const struct cbfs_cachenode **file);
  *
  * @name:		The name to search for.
  *
- * Return: A handle to the file, or NULL on error.
+ * @return A handle to the file, or NULL on error.
  */
 const struct cbfs_cachenode *file_cbfs_find(const char *name);
 
@@ -248,7 +205,7 @@ const struct cbfs_cachenode *file_cbfs_find(const char *name);
  *
  * @cbfs: CBFS to look in (use cbfs_init_mem() to set it up)
  * @name: Filename to look for
- * Return: pointer to CBFS node if found, else NULL
+ * @return pointer to CBFS node if found, else NULL
  */
 const struct cbfs_cachenode *cbfs_find_file(struct cbfs_priv *cbfs,
 					    const char *name);
@@ -260,7 +217,7 @@ const struct cbfs_cachenode *cbfs_find_file(struct cbfs_priv *cbfs,
  * @size: Size of CBFS if known, else CBFS_SIZE_UNKNOWN
  * @require_header: true to read a header at the start, false to not require one
  * @cbfsp: Returns a pointer to CBFS on success
- * Return: 0 if OK, -ve on error
+ * @return 0 if OK, -ve on error
  */
 int cbfs_init_mem(ulong base, ulong size, bool require_hdr,
 		  struct cbfs_priv **privp);
@@ -278,7 +235,7 @@ int cbfs_init_mem(ulong base, ulong size, bool require_hdr,
  * @end_of_rom: Points to the end of the ROM the CBFS should be read from
  * @name: The name to search for
  * @node: Returns the contents of the node if found (i.e. copied into *node)
- * Return: 0 on success, -ENOENT if not found, -EFAULT on bad header
+ * @return 0 on success, -ENOENT if not found, -EFAULT on bad header
  */
 int file_cbfs_find_uncached(ulong end_of_rom, const char *name,
 			    struct cbfs_cachenode *node);
@@ -292,7 +249,7 @@ int file_cbfs_find_uncached(ulong end_of_rom, const char *name,
  * @base: Points to the base of the CBFS
  * @name: The name to search for
  * @node: Returns the contents of the node if found (i.e. copied into *node)
- * Return: 0 on success, -ENOENT if not found, -EFAULT on bad header
+ * @return 0 on success, -ENOENT if not found, -EFAULT on bad header
  */
 int file_cbfs_find_uncached_base(ulong base, const char *name,
 				 struct cbfs_cachenode *node);
@@ -302,7 +259,7 @@ int file_cbfs_find_uncached_base(ulong base, const char *name,
  *
  * @file:		The handle to the file.
  *
- * Return: The name of the file, NULL on error.
+ * @return The name of the file, NULL on error.
  */
 const char *file_cbfs_name(const struct cbfs_cachenode *file);
 
@@ -311,7 +268,7 @@ const char *file_cbfs_name(const struct cbfs_cachenode *file);
  *
  * @file:		The handle to the file.
  *
- * Return: The size of the file, zero on error.
+ * @return The size of the file, zero on error.
  */
 u32 file_cbfs_size(const struct cbfs_cachenode *file);
 
@@ -320,7 +277,7 @@ u32 file_cbfs_size(const struct cbfs_cachenode *file);
  *
  * @file:		The handle to the file.
  *
- * Return: The type of the file, zero on error.
+ * @return The type of the file, zero on error.
  */
 u32 file_cbfs_type(const struct cbfs_cachenode *file);
 
@@ -331,7 +288,7 @@ u32 file_cbfs_type(const struct cbfs_cachenode *file);
  * @buffer:		Where to read it into memory.
  * @maxsize:		Maximum number of bytes to read
  *
- * Return: If positive or zero, the number of characters read. If negative, an
+ * @return If positive or zero, the number of characters read. If negative, an
  *	   error occurred.
  */
 long file_cbfs_read(const struct cbfs_cachenode *file, void *buffer,

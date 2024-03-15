@@ -13,7 +13,6 @@
 #include <mapmem.h>
 #include <asm/global_data.h>
 #include <asm/io.h>
-#include <valgrind/valgrind.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -24,7 +23,7 @@ static void *alloc_simple(size_t bytes, int align)
 
 	addr = ALIGN(gd->malloc_base + gd->malloc_ptr, align);
 	new_ptr = addr + bytes - gd->malloc_base;
-	log_debug("size=%lx, ptr=%lx, limit=%lx: ", (ulong)bytes, new_ptr,
+	log_debug("size=%zx, ptr=%lx, limit=%lx: ", bytes, new_ptr,
 		  gd->malloc_limit);
 	if (new_ptr > gd->malloc_limit) {
 		log_err("alloc space exhausted\n");
@@ -46,7 +45,6 @@ void *malloc_simple(size_t bytes)
 		return ptr;
 
 	log_debug("%lx\n", (ulong)ptr);
-	VALGRIND_MALLOCLIKE_BLOCK(ptr, bytes, 0, false);
 
 	return ptr;
 }
@@ -59,7 +57,6 @@ void *memalign_simple(size_t align, size_t bytes)
 	if (!ptr)
 		return ptr;
 	log_debug("aligned to %lx\n", (ulong)ptr);
-	VALGRIND_MALLOCLIKE_BLOCK(ptr, bytes, 0, false);
 
 	return ptr;
 }
@@ -77,13 +74,6 @@ void *calloc(size_t nmemb, size_t elem_size)
 
 	return ptr;
 }
-
-#if IS_ENABLED(CONFIG_VALGRIND)
-void free_simple(void *ptr)
-{
-	VALGRIND_FREELIKE_BLOCK(ptr, 0);
-}
-#endif
 #endif
 
 void malloc_simple_info(void)

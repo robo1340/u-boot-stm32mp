@@ -271,23 +271,19 @@ int usb_init(void)
 		/* init low_level USB */
 		printf("Bus %s: ", bus->name);
 
+#ifdef CONFIG_SANDBOX
 		/*
 		 * For Sandbox, we need scan the device tree each time when we
 		 * start the USB stack, in order to re-create the emulated USB
 		 * devices and bind drivers for them before we actually do the
 		 * driver probe.
-		 *
-		 * For USB onboard HUB, we need to do some non-trivial init
-		 * like enabling a power regulator, before enumeration.
 		 */
-		if (IS_ENABLED(CONFIG_SANDBOX) ||
-		    IS_ENABLED(CONFIG_USB_ONBOARD_HUB)) {
-			ret = dm_scan_fdt_dev(bus);
-			if (ret) {
-				printf("USB device scan from fdt failed (%d)", ret);
-				continue;
-			}
+		ret = dm_scan_fdt_dev(bus);
+		if (ret) {
+			printf("Sandbox USB device scan failed (%d)\n", ret);
+			continue;
 		}
+#endif
 
 		ret = device_probe(bus);
 		if (ret == -ENODEV) {	/* No such device. */
@@ -400,7 +396,7 @@ int usb_setup_ehci_gadget(struct ehci_ctrl **ctlrp)
 	int ret;
 
 	/* Find the old device and remove it */
-	ret = uclass_find_first_device(UCLASS_USB, &dev);
+	ret = uclass_find_device_by_seq(UCLASS_USB, 0, &dev);
 	if (ret)
 		return ret;
 	ret = device_remove(dev, DM_REMOVE_NORMAL);
@@ -423,7 +419,7 @@ int usb_remove_ehci_gadget(struct ehci_ctrl **ctlrp)
 	int ret;
 
 	/* Find the old device and remove it */
-	ret = uclass_find_first_device(UCLASS_USB, &dev);
+	ret = uclass_find_device_by_seq(UCLASS_USB, 0, &dev);
 	if (ret)
 		return ret;
 	ret = device_remove(dev, DM_REMOVE_NORMAL);

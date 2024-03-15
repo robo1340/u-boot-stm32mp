@@ -258,3 +258,4 @@ U_BOOT_CMD(
 	"print string on lcd-framebuffer",
 	"    <string>"
 );
+

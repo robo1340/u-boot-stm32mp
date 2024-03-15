@@ -47,7 +47,7 @@ static int do_dev(struct cmd_tbl *cmdtp, int flag, int argc,
  * @param dev		pinctrl device
  * @param name		NULL to display all the pins
  *			or name of the pin to display
- * Return: 0 on success, non-0 on error
+ * @return 0 on success, non-0 on error
  */
 static int show_pinmux(struct udevice *dev, char *name)
 {

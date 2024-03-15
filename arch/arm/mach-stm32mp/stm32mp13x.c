@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0-or-later OR BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
- * Copyright (C) 2022, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2020, STMicroelectronics - All Rights Reserved
  */
 
 #define LOG_CATEGORY LOGC_ARCH
@@ -19,10 +19,6 @@
 #define SYSCFG_IDC_REV_ID_MASK	GENMASK(31, 16)
 #define SYSCFG_IDC_REV_ID_SHIFT	16
 
-/* Device Part Number (RPN) = OTP_DATA1 lower 11 bits */
-#define RPN_SHIFT	0
-#define RPN_MASK	GENMASK(11, 0)
-
 static u32 read_idc(void)
 {
 	void *syscfg = syscon_get_first_range(STM32MP_SYSCON_SYSCFG);
@@ -38,17 +34,6 @@ u32 get_cpu_dev(void)
 u32 get_cpu_rev(void)
 {
 	return (read_idc() & SYSCFG_IDC_REV_ID_MASK) >> SYSCFG_IDC_REV_ID_SHIFT;
-}
-
-/* Get Device Part Number (RPN) from OTP */
-static u32 get_cpu_rpn(void)
-{
-	return get_otp(BSEC_OTP_RPN, RPN_SHIFT, RPN_MASK);
-}
-
-u32 get_cpu_type(void)
-{
-	return (get_cpu_dev() << 16) | get_cpu_rpn();
 }
 
 int get_eth_nb(void)

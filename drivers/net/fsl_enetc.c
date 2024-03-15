@@ -22,8 +22,6 @@
 
 #define ENETC_DRIVER_NAME	"enetc_eth"
 
-static int enetc_remove(struct udevice *dev);
-
 /*
  * sets the MAC address in IERB registers, this setting is persistent and
  * carried over to Linux.
@@ -146,7 +144,7 @@ static int enetc_init_sgmii(struct udevice *dev)
 	if (!enetc_has_imdio(dev))
 		return 0;
 
-	if (priv->if_type == PHY_INTERFACE_MODE_2500BASEX)
+	if (priv->if_type == PHY_INTERFACE_MODE_SGMII_2500)
 		is2500 = true;
 
 	/*
@@ -228,8 +226,9 @@ static void enetc_setup_mac_iface(struct udevice *dev,
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		enetc_init_rgmii(dev, phydev);
 		break;
+	case PHY_INTERFACE_MODE_XGMII:
 	case PHY_INTERFACE_MODE_USXGMII:
-	case PHY_INTERFACE_MODE_10GBASER:
+	case PHY_INTERFACE_MODE_XFI:
 		/* set ifmode to (US)XGMII */
 		if_mode = enetc_read_port(priv, ENETC_PM_IF_MODE);
 		if_mode &= ~ENETC_PM_IF_IFMODE_MASK;
@@ -262,13 +261,16 @@ static int enetc_init_sxgmii(struct udevice *dev)
 static void enetc_start_pcs(struct udevice *dev)
 {
 	struct enetc_priv *priv = dev_get_priv(dev);
+	const char *if_str;
+
+	priv->if_type = PHY_INTERFACE_MODE_NONE;
 
 	/* register internal MDIO for debug purposes */
 	if (enetc_read_port(priv, ENETC_PCAPR0) & ENETC_PCAPRO_MDIO) {
 		priv->imdio.read = enetc_mdio_read;
 		priv->imdio.write = enetc_mdio_write;
 		priv->imdio.priv = priv->port_regs + ENETC_PM_IMDIO_BASE;
-		strlcpy(priv->imdio.name, dev->name, MDIO_NAME_LEN);
+		strncpy(priv->imdio.name, dev->name, MDIO_NAME_LEN);
 		if (!miiphy_get_dev_by_name(priv->imdio.name))
 			mdio_register(&priv->imdio);
 	}
@@ -278,20 +280,23 @@ static void enetc_start_pcs(struct udevice *dev)
 		return;
 	}
 
-	priv->if_type = dev_read_phy_mode(dev);
-	if (priv->if_type == PHY_INTERFACE_MODE_NA) {
+	if_str = ofnode_read_string(dev_ofnode(dev), "phy-mode");
+	if (if_str)
+		priv->if_type = phy_get_interface_by_name(if_str);
+	else
 		enetc_dbg(dev,
 			  "phy-mode property not found, defaulting to SGMII\n");
-		priv->if_type = PHY_INTERFACE_MODE_SGMII;
-	}
+	if (priv->if_type < 0)
+		priv->if_type = PHY_INTERFACE_MODE_NONE;
 
 	switch (priv->if_type) {
 	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_2500BASEX:
+	case PHY_INTERFACE_MODE_SGMII_2500:
 		enetc_init_sgmii(dev);
 		break;
+	case PHY_INTERFACE_MODE_XGMII:
 	case PHY_INTERFACE_MODE_USXGMII:
-	case PHY_INTERFACE_MODE_10GBASER:
+	case PHY_INTERFACE_MODE_XFI:
 		enetc_init_sxgmii(dev);
 		break;
 	};
@@ -321,7 +326,6 @@ static int enetc_config_phy(struct udevice *dev)
 static int enetc_probe(struct udevice *dev)
 {
 	struct enetc_priv *priv = dev_get_priv(dev);
-	int res;
 
 	if (ofnode_valid(dev_ofnode(dev)) && !ofnode_is_available(dev_ofnode(dev))) {
 		enetc_dbg(dev, "interface disabled\n");
@@ -342,7 +346,7 @@ static int enetc_probe(struct udevice *dev)
 	}
 
 	/* initialize register */
-	priv->regs_base = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_0, 0, 0, PCI_REGION_TYPE, 0);
+	priv->regs_base = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_0, 0);
 	if (!priv->regs_base) {
 		enetc_dbg(dev, "failed to map BAR0\n");
 		return -EINVAL;
@@ -353,10 +357,7 @@ static int enetc_probe(struct udevice *dev)
 
 	enetc_start_pcs(dev);
 
-	res = enetc_config_phy(dev);
-	if(res)
-		enetc_remove(dev);
-	return res;
+	return enetc_config_phy(dev);
 }
 
 /*
@@ -366,9 +367,6 @@ static int enetc_probe(struct udevice *dev)
 static int enetc_remove(struct udevice *dev)
 {
 	struct enetc_priv *priv = dev_get_priv(dev);
-
-	if (miiphy_get_dev_by_name(priv->imdio.name))
-		mdio_unregister(&priv->imdio);
 
 	free(priv->enetc_txbd);
 	free(priv->enetc_rxbd);

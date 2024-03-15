@@ -12,7 +12,6 @@
 #include <common.h>
 #include <cpu_func.h>
 #include <dm.h>
-#include <generic-phy.h>
 #include <log.h>
 #include <net.h>
 #include <netdev.h>
@@ -22,7 +21,6 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 #include <phy.h>
-#include <reset.h>
 #include <miiphy.h>
 #include <wait_bit.h>
 #include <watchdog.h>
@@ -33,8 +31,6 @@
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <eth_phy.h>
-#include <zynqmp_firmware.h>
 
 /* Bit/mask specification */
 #define ZYNQ_GEM_PHYMNTNC_OP_MASK	0x40020000 /* operation mask bits */
@@ -111,8 +107,6 @@
 #define ZYNQ_GEM_PCS_CTL_ANEG_ENBL	0x1000
 
 #define ZYNQ_GEM_DCFG_DBG6_DMA_64B	BIT(23)
-
-#define MDIO_IDLE_TIMEOUT_MS		100
 
 /* Use MII register 1 (MII status register) to detect PHY */
 #define PHY_DETECT_REG  1
@@ -219,7 +213,6 @@ struct zynq_gem_priv {
 	bool int_pcs;
 	bool dma_64bit;
 	u32 clk_en_info;
-	struct reset_ctl_bulk resets;
 };
 
 static int phy_setup_op(struct zynq_gem_priv *priv, u32 phy_addr, u32 regnum,
@@ -230,7 +223,7 @@ static int phy_setup_op(struct zynq_gem_priv *priv, u32 phy_addr, u32 regnum,
 	int err;
 
 	err = wait_for_bit_le32(&regs->nwsr, ZYNQ_GEM_NWSR_MDIOIDLE_MASK,
-				true, MDIO_IDLE_TIMEOUT_MS, false);
+				true, 20000, false);
 	if (err)
 		return err;
 
@@ -243,7 +236,7 @@ static int phy_setup_op(struct zynq_gem_priv *priv, u32 phy_addr, u32 regnum,
 	writel(mgtcr, &regs->phymntnc);
 
 	err = wait_for_bit_le32(&regs->nwsr, ZYNQ_GEM_NWSR_MDIOIDLE_MASK,
-				true, MDIO_IDLE_TIMEOUT_MS, false);
+				true, 20000, false);
 	if (err)
 		return err;
 
@@ -323,9 +316,6 @@ static int zynq_phy_init(struct udevice *dev)
 	/* Enable only MDIO bus */
 	writel(ZYNQ_GEM_NWCTRL_MDEN_MASK, &regs_mdio->nwctrl);
 
-	if (IS_ENABLED(CONFIG_DM_ETH_PHY))
-		priv->phyaddr = eth_phy_get_addr(dev);
-
 	priv->phydev = phy_connect(priv->bus, priv->phyaddr, dev,
 				   priv->interface);
 	if (!priv->phydev)
@@ -341,8 +331,7 @@ static int zynq_phy_init(struct udevice *dev)
 				  ADVERTISED_Asym_Pause;
 
 	priv->phydev->advertising = priv->phydev->supported;
-	if (!ofnode_valid(priv->phydev->node))
-		priv->phydev->node = priv->phy_of_node;
+	priv->phydev->node = priv->phy_of_node;
 
 	return phy_config(priv->phydev);
 }
@@ -695,82 +684,11 @@ static int zynq_gem_miiphy_write(struct mii_dev *bus, int addr, int devad,
 	return phywrite(priv, addr, reg, value);
 }
 
-static int zynq_gem_reset_init(struct udevice *dev)
-{
-	struct zynq_gem_priv *priv = dev_get_priv(dev);
-	int ret;
-
-	ret = reset_get_bulk(dev, &priv->resets);
-	if (ret == -ENOTSUPP || ret == -ENOENT)
-		return 0;
-	else if (ret)
-		return ret;
-
-	ret = reset_deassert_bulk(&priv->resets);
-	if (ret) {
-		reset_release_bulk(&priv->resets);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int gem_zynqmp_set_dynamic_config(struct udevice *dev)
-{
-	u32 pm_info[2];
-	int ret;
-
-	if (IS_ENABLED(CONFIG_ARCH_ZYNQMP)) {
-		if (!zynqmp_pm_is_function_supported(PM_IOCTL,
-						     IOCTL_SET_GEM_CONFIG)) {
-			ret = ofnode_read_u32_array(dev_ofnode(dev),
-						    "power-domains",
-						    pm_info,
-						    ARRAY_SIZE(pm_info));
-			if (ret) {
-				dev_err(dev,
-					"Failed to read power-domains info\n");
-				return ret;
-			}
-
-			ret = zynqmp_pm_set_gem_config(pm_info[1],
-						       GEM_CONFIG_FIXED, 0);
-			if (ret)
-				return ret;
-
-			ret = zynqmp_pm_set_gem_config(pm_info[1],
-						       GEM_CONFIG_SGMII_MODE,
-						       1);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int zynq_gem_probe(struct udevice *dev)
 {
 	void *bd_space;
 	struct zynq_gem_priv *priv = dev_get_priv(dev);
 	int ret;
-	struct phy phy;
-
-	if (priv->interface == PHY_INTERFACE_MODE_SGMII) {
-		ret = generic_phy_get_by_index(dev, 0, &phy);
-		if (!ret) {
-			ret = generic_phy_init(&phy);
-			if (ret)
-				return ret;
-		} else if (ret != -ENOENT) {
-			debug("could not get phy (err %d)\n", ret);
-			return ret;
-		}
-	}
-
-	ret = zynq_gem_reset_init(dev);
-	if (ret)
-		return ret;
 
 	/* Align rxbuffers to ARCH_DMA_MINALIGN */
 	priv->rxbuffers = memalign(ARCH_DMA_MINALIGN, RX_BUF * PKTSIZE_ALIGN);
@@ -810,47 +728,18 @@ static int zynq_gem_probe(struct udevice *dev)
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_DM_ETH_PHY))
-		priv->bus = eth_phy_get_mdio_bus(dev);
+	priv->bus = mdio_alloc();
+	priv->bus->read = zynq_gem_miiphy_read;
+	priv->bus->write = zynq_gem_miiphy_write;
+	priv->bus->priv = priv;
 
-	if (!priv->bus) {
-		priv->bus = mdio_alloc();
-		priv->bus->read = zynq_gem_miiphy_read;
-		priv->bus->write = zynq_gem_miiphy_write;
-		priv->bus->priv = priv;
-
-		ret = mdio_register_seq(priv->bus, dev_seq(dev));
-		if (ret)
-			goto err2;
-	}
-
-	if (IS_ENABLED(CONFIG_DM_ETH_PHY))
-		eth_phy_set_mdio_bus(dev, priv->bus);
+	ret = mdio_register_seq(priv->bus, dev_seq(dev));
+	if (ret)
+		goto err2;
 
 	ret = zynq_phy_init(dev);
 	if (ret)
 		goto err3;
-
-	if (priv->interface == PHY_INTERFACE_MODE_SGMII && phy.dev) {
-		if (IS_ENABLED(CONFIG_DM_ETH_PHY)) {
-			if (device_is_compatible(dev, "cdns,zynqmp-gem")) {
-				ret = gem_zynqmp_set_dynamic_config(dev);
-				if (ret) {
-					dev_err
-					(dev,
-					 "Failed to set gem dynamic config\n");
-					return ret;
-				}
-			}
-		}
-		ret = generic_phy_power_on(&phy);
-		if (ret)
-			return ret;
-	}
-
-	printf("\nZYNQ GEM: %lx, mdio bus %lx, phyaddr %d, interface %s\n",
-	       (ulong)priv->iobase, (ulong)priv->mdiobase, priv->phydev->addr,
-	       phy_string_for_interface(priv->interface));
 
 	return ret;
 
@@ -889,6 +778,7 @@ static int zynq_gem_of_to_plat(struct udevice *dev)
 	struct eth_pdata *pdata = dev_get_plat(dev);
 	struct zynq_gem_priv *priv = dev_get_priv(dev);
 	struct ofnode_phandle_args phandle_args;
+	const char *phy_mode;
 
 	pdata->iobase = (phys_addr_t)dev_read_addr(dev);
 	priv->iobase = (struct zynq_gem_regs *)pdata->iobase;
@@ -902,19 +792,14 @@ static int zynq_gem_of_to_plat(struct udevice *dev)
 		ofnode parent;
 
 		debug("phy-handle does exist %s\n", dev->name);
-		if (!(IS_ENABLED(CONFIG_DM_ETH_PHY)))
-			priv->phyaddr = ofnode_read_u32_default
-					(phandle_args.node, "reg", -1);
-
+		priv->phyaddr = ofnode_read_u32_default(phandle_args.node,
+							"reg", -1);
 		priv->phy_of_node = phandle_args.node;
 		priv->max_speed = ofnode_read_u32_default(phandle_args.node,
 							  "max-speed",
 							  SPEED_1000);
 
 		parent = ofnode_get_parent(phandle_args.node);
-		if (ofnode_name_eq(parent, "mdio"))
-			parent = ofnode_get_parent(parent);
-
 		addr = ofnode_get_addr(parent);
 		if (addr != FDT_ADDR_T_NONE) {
 			debug("MDIO bus not found %s\n", dev->name);
@@ -922,12 +807,20 @@ static int zynq_gem_of_to_plat(struct udevice *dev)
 		}
 	}
 
-	pdata->phy_interface = dev_read_phy_mode(dev);
-	if (pdata->phy_interface == PHY_INTERFACE_MODE_NA)
+	phy_mode = dev_read_prop(dev, "phy-mode", NULL);
+	if (phy_mode)
+		pdata->phy_interface = phy_get_interface_by_name(phy_mode);
+	if (pdata->phy_interface == -1) {
+		debug("%s: Invalid PHY interface '%s'\n", __func__, phy_mode);
 		return -EINVAL;
+	}
 	priv->interface = pdata->phy_interface;
 
 	priv->int_pcs = dev_read_bool(dev, "is-internal-pcspma");
+
+	printf("\nZYNQ GEM: %lx, mdio bus %lx, phyaddr %d, interface %s\n",
+	       (ulong)priv->iobase, (ulong)priv->mdiobase, priv->phyaddr,
+	       phy_string_for_interface(priv->interface));
 
 	priv->clk_en_info = dev_get_driver_data(dev);
 

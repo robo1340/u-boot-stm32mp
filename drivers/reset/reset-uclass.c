@@ -26,7 +26,7 @@ static int reset_of_xlate_default(struct reset_ctl *reset_ctl,
 	debug("%s(reset_ctl=%p)\n", __func__, reset_ctl);
 
 	if (args->args_count != 1) {
-		debug("Invalid args_count: %d\n", args->args_count);
+		debug("Invaild args_count: %d\n", args->args_count);
 		return -EINVAL;
 	}
 
@@ -68,7 +68,7 @@ static int reset_get_by_index_tail(int ret, ofnode node,
 		return ret;
 	}
 
-	ret = ops->request ? ops->request(reset_ctl) : 0;
+	ret = ops->request(reset_ctl);
 	if (ret) {
 		debug("ops->request() failed: %d\n", ret);
 		return ret;
@@ -168,7 +168,7 @@ int reset_request(struct reset_ctl *reset_ctl)
 
 	debug("%s(reset_ctl=%p)\n", __func__, reset_ctl);
 
-	return ops->request ? ops->request(reset_ctl) : 0;
+	return ops->request(reset_ctl);
 }
 
 int reset_free(struct reset_ctl *reset_ctl)
@@ -177,7 +177,7 @@ int reset_free(struct reset_ctl *reset_ctl)
 
 	debug("%s(reset_ctl=%p)\n", __func__, reset_ctl);
 
-	return ops->rfree ? ops->rfree(reset_ctl) : 0;
+	return ops->rfree(reset_ctl);
 }
 
 int reset_assert(struct reset_ctl *reset_ctl)
@@ -186,7 +186,7 @@ int reset_assert(struct reset_ctl *reset_ctl)
 
 	debug("%s(reset_ctl=%p)\n", __func__, reset_ctl);
 
-	return ops->rst_assert ? ops->rst_assert(reset_ctl) : 0;
+	return ops->rst_assert(reset_ctl);
 }
 
 int reset_assert_bulk(struct reset_ctl_bulk *bulk)
@@ -208,7 +208,7 @@ int reset_deassert(struct reset_ctl *reset_ctl)
 
 	debug("%s(reset_ctl=%p)\n", __func__, reset_ctl);
 
-	return ops->rst_deassert ? ops->rst_deassert(reset_ctl) : 0;
+	return ops->rst_deassert(reset_ctl);
 }
 
 int reset_deassert_bulk(struct reset_ctl_bulk *bulk)
@@ -230,7 +230,7 @@ int reset_status(struct reset_ctl *reset_ctl)
 
 	debug("%s(reset_ctl=%p)\n", __func__, reset_ctl);
 
-	return ops->rst_status ? ops->rst_status(reset_ctl) : 0;
+	return ops->rst_status(reset_ctl);
 }
 
 int reset_release_all(struct reset_ctl *reset_ctl, int count)
@@ -243,6 +243,10 @@ int reset_release_all(struct reset_ctl *reset_ctl, int count)
 		/* check if reset has been previously requested */
 		if (!reset_ctl[i].dev)
 			continue;
+
+		ret = reset_assert(&reset_ctl[i]);
+		if (ret)
+			return ret;
 
 		ret = reset_free(&reset_ctl[i]);
 		if (ret)

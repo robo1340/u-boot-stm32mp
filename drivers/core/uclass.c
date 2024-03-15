@@ -46,7 +46,7 @@ struct uclass *uclass_find(enum uclass_id key)
  * uclass_add() - Create new uclass in list
  * @id: Id number to create
  * @ucp: Returns pointer to uclass, or NULL on error
- * Return: 0 on success, -ve on error
+ * @return 0 on success, -ve on error
  *
  * The new uclass is added to the list. There must be only one uclass for
  * each id.
@@ -180,24 +180,18 @@ void uclass_set_priv(struct uclass *uc, void *priv)
 	uc->priv_ = priv;
 }
 
-enum uclass_id uclass_get_by_namelen(const char *name, int len)
+enum uclass_id uclass_get_by_name(const char *name)
 {
 	int i;
 
 	for (i = 0; i < UCLASS_COUNT; i++) {
 		struct uclass_driver *uc_drv = lists_uclass_lookup(i);
 
-		if (uc_drv && !strncmp(uc_drv->name, name, len) &&
-		    strlen(uc_drv->name) == len)
+		if (uc_drv && !strcmp(uc_drv->name, name))
 			return i;
 	}
 
 	return UCLASS_INVALID;
-}
-
-enum uclass_id uclass_get_by_name(const char *name)
-{
-	return uclass_get_by_namelen(name, strlen(name));
 }
 
 int dev_get_uclass_index(struct udevice *dev, struct uclass **ucp)
@@ -274,8 +268,8 @@ int uclass_find_next_device(struct udevice **devp)
 	return 0;
 }
 
-int uclass_find_device_by_namelen(enum uclass_id id, const char *name, int len,
-				  struct udevice **devp)
+int uclass_find_device_by_name(enum uclass_id id, const char *name,
+			       struct udevice **devp)
 {
 	struct uclass *uc;
 	struct udevice *dev;
@@ -289,20 +283,13 @@ int uclass_find_device_by_namelen(enum uclass_id id, const char *name, int len,
 		return ret;
 
 	uclass_foreach_dev(dev, uc) {
-		if (!strncmp(dev->name, name, len) &&
-		    strlen(dev->name) == len) {
+		if (!strcmp(dev->name, name)) {
 			*devp = dev;
 			return 0;
 		}
 	}
 
 	return -ENODEV;
-}
-
-int uclass_find_device_by_name(enum uclass_id id, const char *name,
-			       struct udevice **devp)
-{
-	return uclass_find_device_by_namelen(id, name, strlen(name), devp);
 }
 
 int uclass_find_next_free_seq(struct uclass *uc)
@@ -410,7 +397,7 @@ done:
 	return ret;
 }
 
-#if CONFIG_IS_ENABLED(OF_REAL)
+#if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
 int uclass_find_device_by_phandle(enum uclass_id id, struct udevice *parent,
 				  const char *name, struct udevice **devp)
 {
@@ -651,19 +638,6 @@ int uclass_next_device_check(struct udevice **devp)
 	return device_probe(*devp);
 }
 
-int uclass_get_count(void)
-{
-	const struct uclass *uc;
-	int count = 0;
-
-	if (gd->dm_root) {
-		list_for_each_entry(uc, gd->uclass_root, sibling_node)
-			count++;
-	}
-
-	return count;
-}
-
 int uclass_first_device_drvdata(enum uclass_id id, ulong driver_data,
 				struct udevice **devp)
 {
@@ -708,7 +682,7 @@ err:
 }
 
 #if CONFIG_IS_ENABLED(DM_DEVICE_REMOVE)
-int uclass_pre_unbind_device(struct udevice *dev)
+int uclass_unbind_device(struct udevice *dev)
 {
 	struct uclass *uc;
 	int ret;
@@ -720,13 +694,7 @@ int uclass_pre_unbind_device(struct udevice *dev)
 			return ret;
 	}
 
-	return 0;
-}
-
-int uclass_unbind_device(struct udevice *dev)
-{
 	list_del(&dev->uclass_node);
-
 	return 0;
 }
 #endif
@@ -813,18 +781,6 @@ int uclass_probe_all(enum uclass_id id)
 	}
 
 	return 0;
-}
-
-int uclass_id_count(enum uclass_id id)
-{
-	struct udevice *dev;
-	struct uclass *uc;
-	int count = 0;
-
-	uclass_id_foreach_dev(id, dev, uc)
-		count++;
-
-	return count;
 }
 
 UCLASS_DRIVER(nop) = {

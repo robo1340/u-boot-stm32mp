@@ -161,9 +161,14 @@ void fsl_fdt_disable_usb(void *blob)
 	 * controller is used, SYSCLK must meet the additional requirement
 	 * of 100 MHz.
 	 */
-	if (get_board_sys_clk() != 100000000)
-		fdt_for_each_node_by_compatible(off, blob, -1, "snps,dwc3")
+	if (CONFIG_SYS_CLK_FREQ != 100000000) {
+		off = fdt_node_offset_by_compatible(blob, -1, "snps,dwc3");
+		while (off != -FDT_ERR_NOTFOUND) {
 			fdt_status_disabled(blob, off);
+			off = fdt_node_offset_by_compatible(blob, off,
+							    "snps,dwc3");
+		}
+	}
 }
 
 #ifdef CONFIG_HAS_FEATURE_GIC64K_ALIGN
@@ -422,7 +427,7 @@ static void fdt_disable_multimedia(void *blob, unsigned int svr)
 		fdt_status_disabled(blob, off);
 
 	/* Disable GPU node */
-	off = fdt_node_offset_by_compatible(blob, -1, "vivante,gc");
+	off = fdt_node_offset_by_compatible(blob, -1, "fsl,ls1028a-gpu");
 	if (off != -FDT_ERR_NOTFOUND)
 		fdt_status_disabled(blob, off);
 }
@@ -650,7 +655,7 @@ void ft_cpu_setup(void *blob, struct bd_info *bd)
 #endif
 
 	do_fixup_by_path_u32(blob, "/sysclk", "clock-frequency",
-			     get_board_sys_clk(), 1);
+			     CONFIG_SYS_CLK_FREQ, 1);
 
 #ifdef CONFIG_GIC_V3_ITS
 	ls_gic_rd_tables_init(blob);
@@ -671,7 +676,7 @@ void ft_cpu_setup(void *blob, struct bd_info *bd)
 			       "clock-frequency", get_qman_freq(), 1);
 #endif
 
-#ifdef CONFIG_FMAN_ENET
+#ifdef CONFIG_SYS_DPAA_FMAN
 	fdt_fixup_fman_firmware(blob);
 #endif
 #ifdef CONFIG_FSL_PFE

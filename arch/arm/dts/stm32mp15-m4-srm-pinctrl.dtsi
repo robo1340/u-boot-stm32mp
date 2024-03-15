@@ -499,7 +499,7 @@
 		};
 	};
 
-	m4_usbotg_hs_pins_a: m4-usbotg-hs-0 {
+	m4_usbotg_hs_pins_a: m4-usbotg_hs-0 {
 		pins {
 			pinmux = <STM32_PINMUX('A', 10, RSVD)>; /* OTG_ID */
 		};

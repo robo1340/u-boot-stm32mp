@@ -63,12 +63,6 @@ static const efi_guid_t uuid_mmc[3] = {
 	ROOTFS_MMC2_UUID
 };
 
-/*
- * GUID value defined in the FWU specification for identification
- * of the FWU metadata partition.
- */
-#define FWU_MDATA_UUID "8a7a84a0-8387-40f6-ab41-a8b9a5a60d23"
-
 /* FIP type partition UUID used by TF-A*/
 #define FIP_TYPE_UUID "19D5DF83-11B0-457B-BE2C-7559C13142A5"
 
@@ -110,15 +104,19 @@ struct fip_toc_header {
 	u64	flags;
 };
 
+DECLARE_GLOBAL_DATA_PTR;
+
+/* OPTEE TA NVMEM helpers fucntions */
 #define TA_NVMEM_UUID { 0x1a8342cc, 0x81a5, 0x4512, \
 		{ 0x99, 0xfe, 0x9e, 0x2b, 0x3e, 0x37, 0xd6, 0x26 } }
 
 /*
  * Read NVMEM memory for STM32CubeProgrammer
  *
- * [in]		value[0].a:		Type (0 for OTP access)
- * [out]	memref[1].buffer	Output buffer to return all read values
- * [out]	memref[1].size		Size of buffer to be read
+ * [in]	     value            a: Type
+ *                               0 to read OTP
+ * [out]     memref           buffer: Output buffer to store read values
+ *                            size: Size of buffer to be read
  *
  * Return codes:
  * TEE_SUCCESS - Invoke command success
@@ -129,9 +127,10 @@ struct fip_toc_header {
 /*
  * Write NVMEM memory for STM32CubeProgrammer
  *
- * [in]	     value[0].a		Type (0 for OTP access)
- * [in]      memref[1].buffer	Input buffer with the values to write
- * [in]      memref[1].size	Size of buffer to be written
+ * [in]	     value            a: Type
+ *                               0 to read OTP
+ * [in]      memref           buffer: Input buffer to read values
+ *                            size: Size of buffer to be written
  *
  * Return codes:
  * TEE_SUCCESS - Invoke command success
@@ -142,9 +141,6 @@ struct fip_toc_header {
 /* value of TA_NVMEM type = value[in] a */
 #define NVMEM_OTP		0
 
-DECLARE_GLOBAL_DATA_PTR;
-
-/* OPTEE TA NVMEM open helper */
 static int optee_ta_open(struct stm32prog_data *data)
 {
 	const struct tee_optee_ta_uuid uuid = TA_NVMEM_UUID;
@@ -171,7 +167,6 @@ static int optee_ta_open(struct stm32prog_data *data)
 	return 0;
 }
 
-/* OPTEE TA NVMEM invoke helper */
 static int optee_ta_invoke(struct stm32prog_data *data, int cmd, int type,
 			   void *buff, ulong size)
 {
@@ -213,6 +208,11 @@ static int optee_ta_invoke(struct stm32prog_data *data, int cmd, int type,
 
 	return rc;
 }
+
+/* partition handling routines : CONFIG_CMD_MTDPARTS */
+int mtdparts_init(void);
+int find_dev_and_part(const char *id, struct mtd_device **dev,
+		      u8 *part_num, struct part_info **part);
 
 char *stm32prog_get_error(struct stm32prog_data *data)
 {
@@ -323,7 +323,7 @@ void stm32prog_header_check(uintptr_t raw_header, struct image_header_s *header)
 	header->image_length = 0x0;
 }
 
-static u32 stm32prog_header_checksum(uintptr_t addr, struct image_header_s *header)
+static u32 stm32prog_header_checksum(u32 addr, struct image_header_s *header)
 {
 	u32 i, checksum;
 	u8 *payload;
@@ -399,7 +399,7 @@ static int parse_name(struct stm32prog_data *data,
 	if (strlen(p) < sizeof(part->name)) {
 		strcpy(part->name, p);
 	} else {
-		stm32prog_err("Layout line %d: partition name too long [%zd]: %s",
+		stm32prog_err("Layout line %d: partition name too long [%d]: %s",
 			      i, strlen(p), p);
 		result = -EINVAL;
 	}
@@ -431,14 +431,8 @@ static int parse_type(struct stm32prog_data *data,
 		}
 	} else if (!strcmp(p, "FIP")) {
 		part->part_type = PART_FIP;
-	} else if (!strcmp(p, "FWU_MDATA")) {
-		part->part_type = PART_FWU_MDATA;
-	} else if (!strcmp(p, "ENV")) {
-		part->part_type = PART_ENV;
 	} else if (!strcmp(p, "System")) {
 		part->part_type = PART_SYSTEM;
-	} else if (!strcmp(p, "ESP")) {
-		part->part_type = PART_ESP;
 	} else if (!strcmp(p, "FileSystem")) {
 		part->part_type = PART_FILESYSTEM;
 	} else if (!strcmp(p, "RawImage")) {
@@ -521,7 +515,7 @@ static int parse_offset(struct stm32prog_data *data,
 			stm32prog_err("Layout line %d: invalid part '%s'",
 				      i, p);
 	} else {
-		part->addr = simple_strtoull(p, &tail, 10);
+		part->addr = simple_strtoull(p, &tail, 0);
 		if (tail == p || *tail != '\0') {
 			stm32prog_err("Layout line %d: invalid offset '%s'",
 				      i, p);
@@ -544,7 +538,7 @@ int (* const parse[COL_NB_STM32])(struct stm32prog_data *data, int i, char *p,
 };
 
 static int parse_flash_layout(struct stm32prog_data *data,
-			      uintptr_t addr,
+			      ulong addr,
 			      ulong size)
 {
 	int column = 0, part_nb = 0, ret;
@@ -748,7 +742,6 @@ static int init_device(struct stm32prog_data *data,
 	struct mmc *mmc = NULL;
 	struct blk_desc *block_dev = NULL;
 	struct mtd_info *mtd = NULL;
-	struct mtd_info *partition;
 	char mtd_id[16];
 	int part_id;
 	int ret;
@@ -757,7 +750,6 @@ static int init_device(struct stm32prog_data *data,
 	u64 part_addr, part_size;
 	bool part_found;
 	const char *part_name;
-	u8 i;
 
 	switch (dev->target) {
 	case STM32PROG_MMC:
@@ -802,11 +794,10 @@ static int init_device(struct stm32prog_data *data,
 			stm32prog_err("unknown device type = %d", dev->target);
 			return -ENODEV;
 		}
-		/* register partitions with MTDIDS/MTDPARTS or OF fallback */
-		mtd_probe_devices();
 		get_mtd_by_target(mtd_id, dev->target, dev->dev_id);
 		log_debug("%s\n", mtd_id);
 
+		mtdparts_init();
 		mtd = get_mtd_device_nm(mtd_id);
 		if (IS_ERR(mtd)) {
 			stm32prog_err("MTD device %s not found", mtd_id);
@@ -953,23 +944,25 @@ static int init_device(struct stm32prog_data *data,
 		}
 
 		if (IS_ENABLED(CONFIG_MTD) && mtd) {
-			i = 0;
-			list_for_each_entry(partition, &mtd->partitions, node) {
-				if ((part->part_id - 1) == i) {
-					part_found = true;
-					break;
-				}
-				i++;
-			}
-			if (part_found) {
-				part_addr = partition->offset;
-				part_size = partition->size;
-				part_name = partition->name;
-			} else {
-				stm32prog_err("%s (0x%x):Couldn't find part %d on device mtd %s",
-					      part->name, part->id, part->part_id, mtd_id);
+			char mtd_part_id[32];
+			struct part_info *mtd_part;
+			struct mtd_device *mtd_dev;
+			u8 part_num;
+
+			sprintf(mtd_part_id, "%s,%d", mtd_id,
+				part->part_id - 1);
+			ret = find_dev_and_part(mtd_part_id, &mtd_dev,
+						&part_num, &mtd_part);
+			if (ret != 0) {
+				stm32prog_err("%s (0x%x): Invalid MTD partition %s",
+					      part->name, part->id,
+					      mtd_part_id);
 				return -ENODEV;
 			}
+			part_addr = mtd_part->offset;
+			part_size = mtd_part->size;
+			part_name = mtd_part->name;
+			part_found = true;
 		}
 
 		/* no partition for this device */
@@ -1007,6 +1000,10 @@ static int treat_partition_list(struct stm32prog_data *data)
 		INIT_LIST_HEAD(&data->dev[j].part_list);
 	}
 
+#ifdef CONFIG_STM32MP15x_STM32IMAGE
+	data->tee_detected = false;
+#endif
+	data->fsbl_nor_detected = false;
 	for (i = 0; i < data->part_nb; i++) {
 		part = &data->part_array[i];
 		part->alt_id = -1;
@@ -1050,6 +1047,23 @@ static int treat_partition_list(struct stm32prog_data *data)
 		if (j == STM32PROG_MAX_DEV) {
 			stm32prog_err("Layout: too many device");
 			return -EINVAL;
+		}
+		switch (part->target)  {
+		case STM32PROG_NOR:
+			if (!data->fsbl_nor_detected &&
+			    !strncmp(part->name, "fsbl", 4))
+				data->fsbl_nor_detected = true;
+			/* fallthrough */
+		case STM32PROG_NAND:
+		case STM32PROG_SPI_NAND:
+#ifdef CONFIG_STM32MP15x_STM32IMAGE
+			if (!data->tee_detected &&
+			    !strncmp(part->name, "tee", 3))
+				data->tee_detected = true;
+			break;
+#endif
+		default:
+			break;
 		}
 		part->dev = &data->dev[j];
 		if (!IS_SELECT(part))
@@ -1117,20 +1131,10 @@ static int create_gpt_partitions(struct stm32prog_data *data)
 			case PART_BINARY:
 				type_str = LINUX_RESERVED_UUID;
 				break;
-			case PART_ENV:
-				type_str = "u-boot-env";
-				break;
 			case PART_FIP:
 				type_str = FIP_TYPE_UUID;
 				break;
-			case PART_FWU_MDATA:
-				type_str = FWU_MDATA_UUID;
-				break;
-			case PART_ESP:
-				/* EFI System Partition */
-				type_str = "system";
-				break;
-			default: /* PART_FILESYSTEM or PART_SYSTEM for distro */
+			default:
 				type_str = "linux";
 				break;
 			}
@@ -1259,7 +1263,7 @@ static int stm32prog_alt_add(struct stm32prog_data *data,
 				   "raw 0x%llx 0x%llx",
 				   part->addr, nb_blk);
 		offset += snprintf(buf + offset, ALT_BUF_LEN - offset,
-				   " mmcpart %d", -(part->part_id));
+				   " mmcpart %d;", -(part->part_id));
 	} else {
 		if (part->part_type == PART_SYSTEM &&
 		    (part->target == STM32PROG_NAND ||
@@ -1277,7 +1281,7 @@ static int stm32prog_alt_add(struct stm32prog_data *data,
 			offset += snprintf(buf + offset, ALT_BUF_LEN - offset,
 					   " %d", part->dev_id);
 		offset += snprintf(buf + offset, ALT_BUF_LEN - offset,
-				   " %d", part->part_id);
+				   " %d;", part->part_id);
 	}
 	ret = -ENODEV;
 	switch (part->target) {
@@ -1398,7 +1402,7 @@ static int dfu_init_entities(struct stm32prog_data *data)
 		char buf[ALT_BUF_LEN];
 
 		sprintf(buf, "@FlashLayout/0x%02x/1*256Ke ram %x 40000",
-			PHASE_FLASHLAYOUT, CONFIG_SYS_LOAD_ADDR);
+			PHASE_FLASHLAYOUT, STM32_DDR_BASE);
 		ret = dfu_alt_add(dfu, "ram", NULL, buf);
 		log_debug("dfu_alt_add(ram, NULL,%s) result %d\n", buf, ret);
 	}
@@ -1431,16 +1435,13 @@ int stm32prog_otp_write(struct stm32prog_data *data, u32 offset, u8 *buffer,
 	if (!IS_ENABLED(CONFIG_CMD_STM32PROG_OTP)) {
 		stm32prog_err("OTP update not supported");
 
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 	}
 
 	if (!data->otp_part) {
 		data->otp_part = memalign(CONFIG_SYS_CACHELINE_SIZE, otp_size);
-		if (!data->otp_part) {
-			stm32prog_err("OTP write issue %d", -ENOMEM);
-
+		if (!data->otp_part)
 			return -ENOMEM;
-		}
 	}
 
 	if (!offset)
@@ -1449,7 +1450,7 @@ int stm32prog_otp_write(struct stm32prog_data *data, u32 offset, u8 *buffer,
 	if (offset + *size > otp_size)
 		*size = otp_size - offset;
 
-	memcpy((void *)((uintptr_t)data->otp_part + offset), buffer, *size);
+	memcpy((void *)((u32)data->otp_part + offset), buffer, *size);
 
 	return 0;
 }
@@ -1463,7 +1464,7 @@ int stm32prog_otp_read(struct stm32prog_data *data, u32 offset, u8 *buffer,
 	if (!IS_ENABLED(CONFIG_CMD_STM32PROG_OTP)) {
 		stm32prog_err("OTP update not supported");
 
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 	}
 
 	log_debug("%s: %x %lx\n", __func__, offset, *size);
@@ -1482,13 +1483,13 @@ int stm32prog_otp_read(struct stm32prog_data *data, u32 offset, u8 *buffer,
 		memset(data->otp_part, 0, otp_size);
 
 		/* call the service */
-		result = -EOPNOTSUPP;
+		result = -ENOTSUPP;
 		if (data->tee && CONFIG_IS_ENABLED(OPTEE))
 			result = optee_ta_invoke(data, TA_NVMEM_READ, NVMEM_OTP,
 						 data->otp_part, OTP_SIZE_TA);
 		else if (IS_ENABLED(CONFIG_ARM_SMCCC))
 			result = stm32_smc_exec(STM32_SMC_BSEC, STM32_SMC_READ_ALL,
-						(unsigned long)data->otp_part, 0);
+						(u32)data->otp_part, 0);
 		if (result)
 			goto end_otp_read;
 	}
@@ -1500,11 +1501,9 @@ int stm32prog_otp_read(struct stm32prog_data *data, u32 offset, u8 *buffer,
 
 	if (offset + *size > otp_size)
 		*size = otp_size - offset;
-	memcpy(buffer, (void *)((uintptr_t)data->otp_part + offset), *size);
+	memcpy(buffer, (void *)((u32)data->otp_part + offset), *size);
 
 end_otp_read:
-	if (result)
-		stm32prog_err("OTP read issue %d", result);
 	log_debug("%s: result %i\n", __func__, result);
 
 	return result;
@@ -1518,7 +1517,7 @@ int stm32prog_otp_start(struct stm32prog_data *data)
 	if (!IS_ENABLED(CONFIG_CMD_STM32PROG_OTP)) {
 		stm32prog_err("OTP update not supported");
 
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 	}
 
 	if (!data->otp_part) {
@@ -1526,13 +1525,13 @@ int stm32prog_otp_start(struct stm32prog_data *data)
 		return -1;
 	}
 
-	result = -EOPNOTSUPP;
+	result = -ENOTSUPP;
 	if (data->tee && CONFIG_IS_ENABLED(OPTEE)) {
 		result = optee_ta_invoke(data, TA_NVMEM_WRITE, NVMEM_OTP,
 					 data->otp_part, OTP_SIZE_TA);
 	} else if (IS_ENABLED(CONFIG_ARM_SMCCC)) {
 		arm_smccc_smc(STM32_SMC_BSEC, STM32_SMC_WRITE_ALL,
-			      (uintptr_t)data->otp_part, 0, 0, 0, 0, 0, &res);
+			      (u32)data->otp_part, 0, 0, 0, 0, 0, &res);
 
 		if (!res.a0) {
 			switch (res.a1) {
@@ -1558,8 +1557,6 @@ int stm32prog_otp_start(struct stm32prog_data *data)
 
 	free(data->otp_part);
 	data->otp_part = NULL;
-	if (result)
-		stm32prog_err("OTP write issue %d", result);
 	log_debug("%s: result %i\n", __func__, result);
 
 	return result;
@@ -1712,15 +1709,15 @@ static void stm32prog_end_phase(struct stm32prog_data *data, u64 offset)
 {
 	if (data->phase == PHASE_FLASHLAYOUT) {
 #if defined(CONFIG_LEGACY_IMAGE_FORMAT)
-		if (genimg_get_format((void *)CONFIG_SYS_LOAD_ADDR) == IMAGE_FORMAT_LEGACY) {
-			data->script = CONFIG_SYS_LOAD_ADDR;
+		if (genimg_get_format((void *)STM32_DDR_BASE) == IMAGE_FORMAT_LEGACY) {
+			data->script = STM32_DDR_BASE;
 			data->phase = PHASE_END;
 			log_notice("U-Boot script received\n");
 			return;
 		}
 #endif
 		log_notice("\nFlashLayout received, size = %lld\n", offset);
-		if (parse_flash_layout(data, CONFIG_SYS_LOAD_ADDR, offset))
+		if (parse_flash_layout(data, STM32_DDR_BASE, offset))
 			stm32prog_err("Layout: invalid FlashLayout");
 		return;
 	}
@@ -1964,7 +1961,7 @@ int stm32prog_dfu_init(struct stm32prog_data *data)
 	return dfu_init_entities(data);
 }
 
-int stm32prog_init(struct stm32prog_data *data, uintptr_t addr, ulong size)
+int stm32prog_init(struct stm32prog_data *data, ulong addr, ulong size)
 {
 	memset(data, 0x0, sizeof(*data));
 	data->read_phase = PHASE_RESET;

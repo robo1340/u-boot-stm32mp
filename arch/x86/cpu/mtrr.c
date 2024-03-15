@@ -109,7 +109,7 @@ static void read_mtrrs(void *arg)
 /**
  * mtrr_copy_to_aps() - Copy the MTRRs from the boot CPU to other CPUs
  *
- * Return: 0 on success, -ve on failure
+ * @return 0 on success, -ve on failure
  */
 static int mtrr_copy_to_aps(void)
 {

@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2019-2022 NXP
+ * Copyright 2019 NXP
  */
 
 #include <common.h>
-#include <display_options.h>
 #include <init.h>
 #include <malloc.h>
 #include <errno.h>
@@ -74,6 +73,14 @@ u32 get_lpuart_clk(void)
 
 int board_init(void)
 {
+#ifdef CONFIG_ENV_IS_NOWHERE
+	gd->env_addr = (ulong)&default_environment[0];
+#endif
+
+#ifdef CONFIG_FSL_CAAM
+	sec_init();
+#endif
+
 #ifdef CONFIG_FSL_LS_PPA
 	ppa_init();
 #endif
@@ -130,7 +137,7 @@ int board_early_init_f(void)
 	u8 uart;
 #endif
 
-#if defined(CONFIG_SYS_I2C_EARLY_INIT) && defined(CONFIG_SPL_BUILD)
+#ifdef CONFIG_SYS_I2C_EARLY_INIT
 	i2c_early_init_f();
 #endif
 
@@ -329,8 +336,3 @@ int checkboard(void)
 	return 0;
 }
 #endif
-
-void *video_hw_init(void)
-{
-	return NULL;
-}

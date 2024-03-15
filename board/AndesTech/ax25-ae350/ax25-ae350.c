@@ -21,6 +21,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+extern phys_addr_t prior_stage_fdt_address;
 /*
  * Miscellaneous platform dependent initializations
  */
@@ -54,22 +55,9 @@ ulong board_flash_get_legacy(ulong base, int banknum, flash_info_t *info)
 	return 0;
 }
 
-#define ANDES_HW_DTB_ADDRESS	0xF2000000
-void *board_fdt_blob_setup(int *err)
+void *board_fdt_blob_setup(void)
 {
-	*err = 0;
-
-	if (IS_ENABLED(CONFIG_OF_SEPARATE) || IS_ENABLED(CONFIG_OF_BOARD)) {
-		if (gd->arch.firmware_fdt_addr)
-			return (void *)(ulong)gd->arch.firmware_fdt_addr;
-	}
-
-	if (fdt_magic(CONFIG_SYS_FDT_BASE) == FDT_MAGIC)
-		return (void *)CONFIG_SYS_FDT_BASE;
-	return (void *)ANDES_HW_DTB_ADDRESS;
-
-	*err = -EINVAL;
-	return NULL;
+	return (void *)CONFIG_SYS_FDT_BASE;
 }
 
 int smc_init(void)
@@ -121,7 +109,7 @@ void board_boot_order(u32 *spl_boot_list)
 #ifdef CONFIG_SPL_RAM_SUPPORT
 		BOOT_DEVICE_RAM,
 #endif
-#ifdef CONFIG_SPL_MMC
+#ifdef CONFIG_SPL_MMC_SUPPORT
 		BOOT_DEVICE_MMC1,
 #endif
 	};

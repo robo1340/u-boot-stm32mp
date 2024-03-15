@@ -112,7 +112,6 @@ int fdt_simplefb_enable_and_mem_rsv(void *blob)
 	mem.start = gd->video_bottom;
 	mem.end = gd->video_top - 1;
 
-	return fdtdec_add_reserved_memory(blob, "framebuffer", &mem, NULL, 0, NULL,
-					  FDTDEC_RESERVED_MEMORY_NO_MAP);
+	return fdtdec_add_reserved_memory(blob, "framebuffer", &mem, NULL, true);
 }
 #endif

@@ -4,10 +4,10 @@
  * Author: Alexandre Torgue <alexandre.torgue@st.com> for STMicroelectronics.
  */
 
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/mfd/st,stpmic1.h>
 #include "stm32mp15-m4-srm.dtsi"
 #include "stm32mp15-m4-srm-pinctrl.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/mfd/st,stpmic1.h>
 
 / {
 	aliases {
@@ -51,7 +51,7 @@
 			no-map;
 		};
 
-		mcu_rsc_table: mcu-rsc-table@10048000 {
+		mcu_rsc_table: mcu_rsc_table@10048000 {
 			compatible = "shared-dma-pool";
 			reg = <0x10048000 0x8000>;
 			no-map;
@@ -73,6 +73,11 @@
 			reg = <0xd4000000 0x4000000>;
 			no-map;
 		};
+
+		optee@de000000 {
+			reg = <0xde000000 0x2000000>;
+			no-map;
+		};
 	};
 
 	led {
@@ -85,7 +90,7 @@
 		};
 	};
 
-	sound {
+	sound: sound {
 		compatible = "audio-graph-card";
 		label = "STM32MP15-DK";
 		routing =
@@ -143,11 +148,6 @@
 	};
 };
 
-&arm_wdt {
-	timeout-sec = <32>;
-	status = "okay";
-};
-
 &cec {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cec_pins_b>;
@@ -155,16 +155,24 @@
 	status = "okay";
 };
 
-&cpu0 {
+&cpu0{
 	cpu-supply = <&vddcore>;
 };
 
-&cpu1 {
+&cpu1{
 	cpu-supply = <&vddcore>;
 };
 
 &crc1 {
 	status = "okay";
+};
+
+&dma1 {
+	sram = <&dma_pool>;
+};
+
+&dma2 {
+	sram = <&dma_pool>;
 };
 
 &dts {
@@ -418,7 +426,7 @@
 				interrupts = <IT_CURLIM_LDO6 0>;
 			};
 
-			vref_ddr: vref-ddr {
+			vref_ddr: vref_ddr {
 				regulator-name = "vref_ddr";
 				regulator-always-on;
 			};
@@ -428,12 +436,12 @@
 				interrupts = <IT_OCP_BOOST 0>;
 			};
 
-			vbus_otg: pwr-sw1 {
+			vbus_otg: pwr_sw1 {
 				regulator-name = "vbus_otg";
 				interrupts = <IT_OCP_OTG 0>;
 			};
 
-			vbus_sw: pwr-sw2 {
+			vbus_sw: pwr_sw2 {
 				regulator-name = "vbus_sw";
 				interrupts = <IT_OCP_SWOUT 0>;
 				regulator-active-discharge = <1>;
@@ -489,6 +497,11 @@
 	status = "okay";
 };
 
+&iwdg2 {
+	timeout-sec = <32>;
+	status = "okay";
+};
+
 &ltdc {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&ltdc_pins_a>;
@@ -496,7 +509,8 @@
 	status = "okay";
 
 	port {
-		ltdc_ep0_out: endpoint {
+		ltdc_ep0_out: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&sii9022_in>;
 		};
 	};
@@ -602,6 +616,13 @@
 	pinctrl-0 = <&spi5_pins_a>;
 	pinctrl-1 = <&spi5_sleep_pins_a>;
 	status = "disabled";
+};
+
+&sram {
+	dma_pool: dma_pool@0 {
+		reg = <0x50000 0x10000>;
+		pool;
+	};
 };
 
 &timers1 {
@@ -721,14 +742,6 @@
 &usbh_ehci {
 	phys = <&usbphyc_port0>;
 	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-	/* onboard HUB */
-	hub@1 {
-		compatible = "usb424,2514";
-		reg = <1>;
-		vdd-supply = <&v3v3>;
-	};
 };
 
 &usbotg_hs {
@@ -758,6 +771,16 @@
 	st,tune-squelch-level = <3>;
 	st,tune-hs-rx-offset = <2>;
 	st,no-lsfs-sc;
+
+	/*
+	 * Hack to keep hub active until all connected devices are suspended
+	 * otherwise the hub will be powered off as soon as the v3v3 is disabled
+	 * and it can disturb connected devices.
+	 */
+	connector {
+		compatible = "usb-a-connector";
+		vbus-supply = <&v3v3>;
+	};
 };
 
 &usbphyc_port1 {

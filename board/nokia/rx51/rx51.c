@@ -30,9 +30,7 @@
 #include <malloc.h>
 #include <twl4030.h>
 #include <i2c.h>
-#include <video.h>
-#include <keyboard.h>
-#include <ns16550.h>
+#include <video_fb.h>
 #include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/setup.h>
@@ -62,6 +60,8 @@ struct emu_hal_params_rx51 {
 #define ONENAND_GPMC_CONFIG6_RX51	0x90060000
 
 DECLARE_GLOBAL_DATA_PTR;
+
+GraphicDevice gdev;
 
 const omap3_sysinfo sysinfo = {
 	DDR_STACKED,
@@ -241,7 +241,6 @@ int board_init(void)
 	return 0;
 }
 
-#ifdef CONFIG_REVISION_TAG
 /*
  * Routine: get_board_revision
  * Description: Return board revision.
@@ -250,7 +249,6 @@ u32 get_board_rev(void)
 {
 	return simple_strtol(hw_build_ptr, NULL, 16);
 }
-#endif
 
 /*
  * Routine: setup_board_tags
@@ -341,27 +339,21 @@ void setup_board_tags(struct tag **in_params)
 	*in_params = params;
 }
 
-static int rx51_video_probe(struct udevice *dev)
+/*
+ * Routine: video_hw_init
+ * Description: Set up the GraphicDevice depending on sys_boot.
+ */
+void *video_hw_init(void)
 {
-	struct video_uc_plat *uc_plat = dev_get_uclass_plat(dev);
-	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
-
-	uc_plat->base = 0x8f9c0000;
-	uc_plat->size = 800 * 480 * sizeof(u16);
-	uc_priv->xsize = 800;
-	uc_priv->ysize = 480;
-	uc_priv->bpix = VIDEO_BPP16;
-
-	video_set_flush_dcache(dev, true);
-
-	return 0;
+	/* fill in Graphic Device */
+	gdev.frameAdrs = 0x8f9c0000;
+	gdev.winSizeX = 800;
+	gdev.winSizeY = 480;
+	gdev.gdfBytesPP = 2;
+	gdev.gdfIndex = GDF_16BIT_565RGB;
+	memset((void *)gdev.frameAdrs, 0, 0xbb800);
+	return (void *) &gdev;
 }
-
-U_BOOT_DRIVER(rx51_video) = {
-	.name = "rx51_video",
-	.id = UCLASS_VIDEO,
-	.probe = rx51_video_probe,
-};
 
 /*
  * Routine: twl4030_regulator_set_mode
@@ -585,10 +577,10 @@ static u8 keybuf_head;
 static u8 keybuf_tail;
 
 /*
- * Routine: rx51_kp_start
+ * Routine: rx51_kp_init
  * Description: Initialize HW keyboard.
  */
-static int rx51_kp_start(struct udevice *dev)
+int rx51_kp_init(void)
 {
 	int ret = 0;
 	u8 ctrl;
@@ -662,7 +654,7 @@ static void rx51_kp_fill(u8 k, u8 mods)
  * Routine: rx51_kp_tstc
  * Description: Test if key was pressed (from buffer).
  */
-static int rx51_kp_tstc(struct udevice *dev)
+int rx51_kp_tstc(struct stdio_dev *sdev)
 {
 	u8 c, r, dk, i;
 	u8 intr;
@@ -718,35 +710,13 @@ static int rx51_kp_tstc(struct udevice *dev)
  * Routine: rx51_kp_getc
  * Description: Get last pressed key (from buffer).
  */
-static int rx51_kp_getc(struct udevice *dev)
+int rx51_kp_getc(struct stdio_dev *sdev)
 {
 	keybuf_head %= KEYBUF_SIZE;
-	while (!rx51_kp_tstc(dev))
+	while (!rx51_kp_tstc(sdev))
 		WATCHDOG_RESET();
 	return keybuf[keybuf_head++];
 }
-
-static int rx51_kp_probe(struct udevice *dev)
-{
-	struct keyboard_priv *uc_priv = dev_get_uclass_priv(dev);
-	struct stdio_dev *sdev = &uc_priv->sdev;
-
-	strcpy(sdev->name, "keyboard");
-	return input_stdio_register(sdev);
-}
-
-static const struct keyboard_ops rx51_kp_ops = {
-	.start = rx51_kp_start,
-	.tstc = rx51_kp_tstc,
-	.getc = rx51_kp_getc,
-};
-
-U_BOOT_DRIVER(rx51_kp) = {
-	.name = "rx51_kp",
-	.id = UCLASS_KEYBOARD,
-	.probe = rx51_kp_probe,
-	.ops = &rx51_kp_ops,
-};
 
 static const struct mmc_config rx51_mmc_cfg = {
 	.host_caps = MMC_MODE_4BIT | MMC_MODE_HS_52MHz | MMC_MODE_HS,
@@ -780,23 +750,4 @@ U_BOOT_DRVINFOS(rx51_i2c) = {
 
 U_BOOT_DRVINFOS(rx51_watchdog) = {
 	{ "rx51_watchdog" },
-};
-
-U_BOOT_DRVINFOS(rx51_video) = {
-	{ "rx51_video" },
-};
-
-U_BOOT_DRVINFOS(rx51_kp) = {
-	{ "rx51_kp" },
-};
-
-static const struct ns16550_plat rx51_serial = {
-	.base = CONFIG_SYS_NS16550_COM3,
-	.reg_shift = 2,
-	.clock = CONFIG_SYS_NS16550_CLK,
-	.fcr = UART_FCR_DEFVAL,
-};
-
-U_BOOT_DRVINFOS(rx51_uart) = {
-	{ "omap_serial", &rx51_serial },
 };

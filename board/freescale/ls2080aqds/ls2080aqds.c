@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2015 Freescale Semiconductor
- * Copyright 2021 NXP
  */
 #include <common.h>
-#include <clock_legacy.h>
-#include <display_options.h>
 #include <env.h>
 #include <init.h>
 #include <malloc.h>
@@ -23,6 +20,7 @@
 #include <rtc.h>
 #include <asm/arch/soc.h>
 #include <hwconfig.h>
+#include <fsl_sec.h>
 #include <asm/arch/ppa.h>
 #include <asm/arch-fsl-layerscape/fsl_icid.h>
 #include "../common/i2c_mux.h"
@@ -213,6 +211,9 @@ int board_init(void)
 			     FSL_QIXIS_BRDCFG9_QSPI);
 #endif
 
+#ifdef CONFIG_ENV_IS_NOWHERE
+	gd->env_addr = (ulong)&default_environment[0];
+#endif
 	select_i2c_ch_pca9547(I2C_MUX_CH_DEFAULT, 0);
 
 #ifdef CONFIG_RTC_ENABLE_32KHZ_OUTPUT
@@ -221,6 +222,10 @@ int board_init(void)
 #else
 	rtc_enable_32khz_output();
 #endif
+#endif
+
+#ifdef CONFIG_FSL_CAAM
+	sec_init();
 #endif
 
 #ifdef CONFIG_FSL_LS_PPA
@@ -236,7 +241,7 @@ int board_init(void)
 
 int board_early_init_f(void)
 {
-#if defined(CONFIG_SYS_I2C_EARLY_INIT)
+#ifdef CONFIG_SYS_I2C_EARLY_INIT
 	i2c_early_init_f();
 #endif
 	fsl_lsch3_early_init_f();

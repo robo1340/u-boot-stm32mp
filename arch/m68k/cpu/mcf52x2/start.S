@@ -6,6 +6,7 @@
 
 #include <asm-offsets.h>
 #include <config.h>
+#include "version.h"
 #include <asm/cache.h>
 
 #define _START	_start
@@ -303,6 +304,10 @@ clear_bss:
 	/* set parameters for board_init_r */
 	move.l	%a0,-(%sp)		/* dest_addr */
 	move.l	%d0,-(%sp)		/* gd */
+#if defined(DEBUG) && (CONFIG_SYS_TEXT_BASE != CONFIG_SYS_INT_FLASH_BASE) && \
+    defined(CONFIG_SYS_HALT_BEFOR_RAM_JUMP)
+	halt
+#endif
 	jsr	(%a1)
 
 /******************************************************************************/
@@ -330,4 +335,7 @@ _int_handler:
 
 /******************************************************************************/
 
+.globl version_string
+version_string:
+.ascii U_BOOT_VERSION_STRING, "\0"
 .align 4

@@ -33,6 +33,10 @@
 #error CONFIG_ENV_OFFSET_REDUND must have CONFIG_CMD_SAVEENV & CONFIG_CMD_NAND
 #endif
 
+#ifndef CONFIG_ENV_RANGE
+#define CONFIG_ENV_RANGE	CONFIG_ENV_SIZE
+#endif
+
 #if defined(ENV_IS_EMBEDDED)
 static env_t *env_ptr = &environment;
 #elif defined(CONFIG_NAND_ENV_DST)
@@ -103,7 +107,8 @@ static int env_nand_init(void)
 	gd->env_addr = (ulong)env_ptr->data;
 
 #else /* ENV_IS_EMBEDDED || CONFIG_NAND_ENV_DST */
-	gd->env_valid	= ENV_INVALID;
+	gd->env_addr	= (ulong)&default_environment[0];
+	gd->env_valid	= ENV_VALID;
 #endif /* ENV_IS_EMBEDDED || CONFIG_NAND_ENV_DST */
 
 	return 0;
@@ -196,6 +201,10 @@ static int env_nand_save(void)
 		},
 #endif
 	};
+
+
+	if (CONFIG_ENV_RANGE < CONFIG_ENV_SIZE)
+		return 1;
 
 	ret = env_export(env_new);
 	if (ret)

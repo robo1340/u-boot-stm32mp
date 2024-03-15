@@ -23,6 +23,11 @@
 #include <dm/uclass.h>
 #include <linux/bitops.h>
 
+/* Device Part Number (RPN) = OTP_DATA1 lower 8 bits */
+#define RPN_SHIFT	0
+#define RPN_MASK_STM32MP13x	GENMASK(14, 0)
+#define RPN_MASK_STM32MP15x	GENMASK(7, 0)
+
 /*
  * early TLB into the .data section so that it not get cleared
  * with 16kB allignment (see TTBR0_BASE_ADDR_MASK)
@@ -147,6 +152,25 @@ void enable_caches(void)
 	 * warning: the TLB location udpated in board_f.c::reserve_mmu
 	 */
 	dcache_enable();
+}
+
+/* Get Device Part Number (RPN) from OTP */
+static u32 get_cpu_rpn(void)
+{
+	int mask;
+
+	if (IS_ENABLED(CONFIG_STM32MP13x))
+		mask = RPN_MASK_STM32MP13x;
+
+	if (IS_ENABLED(CONFIG_STM32MP15x))
+		mask = RPN_MASK_STM32MP15x;
+
+	return get_otp(BSEC_OTP_RPN, RPN_SHIFT, mask);
+}
+
+u32 get_cpu_type(void)
+{
+	return (get_cpu_dev() << 16) | get_cpu_rpn();
 }
 
 /* used when CONFIG_DISPLAY_CPUINFO is activated */

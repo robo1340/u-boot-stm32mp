@@ -35,9 +35,10 @@ struct clk *dev_get_clk_ptr(struct udevice *dev)
 	return (struct clk *)dev_get_uclass_priv(dev);
 }
 
-#if CONFIG_IS_ENABLED(OF_PLATDATA)
-int clk_get_by_phandle(struct udevice *dev, const struct phandle_1_arg *cells,
-		       struct clk *clk)
+#if CONFIG_IS_ENABLED(OF_CONTROL)
+# if CONFIG_IS_ENABLED(OF_PLATDATA)
+int clk_get_by_driver_info(struct udevice *dev, struct phandle_1_arg *cells,
+			   struct clk *clk)
 {
 	int ret;
 
@@ -48,16 +49,14 @@ int clk_get_by_phandle(struct udevice *dev, const struct phandle_1_arg *cells,
 
 	return 0;
 }
-#endif
-
-#if CONFIG_IS_ENABLED(OF_REAL)
+# else
 static int clk_of_xlate_default(struct clk *clk,
 				struct ofnode_phandle_args *args)
 {
 	debug("%s(clk=%p)\n", __func__, clk);
 
 	if (args->args_count > 1) {
-		debug("Invalid args_count: %d\n", args->args_count);
+		debug("Invaild args_count: %d\n", args->args_count);
 		return -EINVAL;
 	}
 
@@ -138,7 +137,14 @@ static int clk_get_by_indexed_prop(struct udevice *dev, const char *prop_name,
 
 int clk_get_by_index(struct udevice *dev, int index, struct clk *clk)
 {
-	return clk_get_by_index_nodev(dev_ofnode(dev), index, clk);
+	struct ofnode_phandle_args args;
+	int ret;
+
+	ret = dev_read_phandle_with_args(dev, "clocks", "#clock-cells", 0,
+					 index, &args);
+
+	return clk_get_by_index_tail(ret, dev_ofnode(dev), &args, "clocks",
+				     index, clk);
 }
 
 int clk_get_by_index_nodev(ofnode node, int index, struct clk *clk)
@@ -393,9 +399,20 @@ int clk_set_defaults(struct udevice *dev, enum clk_defaults_stage stage)
 
 int clk_get_by_name(struct udevice *dev, const char *name, struct clk *clk)
 {
-	return clk_get_by_name_nodev(dev_ofnode(dev), name, clk);
+	int index;
+
+	debug("%s(dev=%p, name=%s, clk=%p)\n", __func__, dev, name, clk);
+	clk->dev = NULL;
+
+	index = dev_read_stringlist_search(dev, "clock-names", name);
+	if (index < 0) {
+		debug("fdt_stringlist_search() failed: %d\n", index);
+		return index;
+	}
+
+	return clk_get_by_index(dev, index, clk);
 }
-#endif /* OF_REAL */
+# endif /* OF_PLATDATA */
 
 int clk_get_by_name_nodev(ofnode node, const char *name, struct clk *clk)
 {
@@ -414,6 +431,17 @@ int clk_get_by_name_nodev(ofnode node, const char *name, struct clk *clk)
 	return clk_get_by_index_nodev(node, index, clk);
 }
 
+int clk_get_optional_nodev(ofnode node, const char *name, struct clk *clk)
+{
+	int ret;
+
+	ret = clk_get_by_name_nodev(node, name, clk);
+	if (ret == -ENODATA)
+		return 0;
+
+	return ret;
+}
+
 int clk_release_all(struct clk *clk, int count)
 {
 	int i, ret;
@@ -429,11 +457,15 @@ int clk_release_all(struct clk *clk, int count)
 		if (ret && ret != -ENOSYS)
 			return ret;
 
-		clk_free(&clk[i]);
+		ret = clk_free(&clk[i]);
+		if (ret && ret != -ENOSYS)
+			return ret;
 	}
 
 	return 0;
 }
+
+#endif /* OF_CONTROL */
 
 int clk_request(struct udevice *dev, struct clk *clk)
 {
@@ -452,18 +484,19 @@ int clk_request(struct udevice *dev, struct clk *clk)
 	return ops->request(clk);
 }
 
-void clk_free(struct clk *clk)
+int clk_free(struct clk *clk)
 {
 	const struct clk_ops *ops;
 
 	debug("%s(clk=%p)\n", __func__, clk);
 	if (!clk_valid(clk))
-		return;
+		return 0;
 	ops = clk_dev_ops(clk->dev);
 
-	if (ops->rfree)
-		ops->rfree(clk);
-	return;
+	if (!ops->rfree)
+		return 0;
+
+	return ops->rfree(clk);
 }
 
 ulong clk_get_rate(struct clk *clk)
@@ -824,6 +857,16 @@ struct clk *devm_clk_get(struct udevice *dev, const char *id)
 	return clk;
 }
 
+struct clk *devm_clk_get_optional(struct udevice *dev, const char *id)
+{
+	struct clk *clk = devm_clk_get(dev, id);
+
+	if (PTR_ERR(clk) == -ENODATA)
+		return NULL;
+
+	return clk;
+}
+
 void devm_clk_put(struct udevice *dev, struct clk *clk)
 {
 	int rc;
@@ -837,13 +880,17 @@ void devm_clk_put(struct udevice *dev, struct clk *clk)
 
 int clk_uclass_post_probe(struct udevice *dev)
 {
+	int ret;
+
 	/*
 	 * when a clock provider is probed. Call clk_set_defaults()
 	 * also after the device is probed. This takes care of cases
 	 * where the DT is used to setup default parents and rates
 	 * using assigned-clocks
 	 */
-	clk_set_defaults(dev, CLK_DEFAULTS_POST);
+	ret = clk_set_defaults(dev, CLK_DEFAULTS_POST);
+	if (ret)
+		return log_ret(ret);
 
 	return 0;
 }

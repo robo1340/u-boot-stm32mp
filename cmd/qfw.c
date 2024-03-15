@@ -25,17 +25,15 @@ static int qemu_fwcfg_cmd_setup_kernel(void *load_addr, void *initrd_addr)
 	qfw_read_entry(qfw_dev, FW_CFG_SETUP_SIZE, 4, &setup_size);
 	qfw_read_entry(qfw_dev, FW_CFG_KERNEL_SIZE, 4, &kernel_size);
 
-	if (kernel_size == 0) {
+	if (setup_size == 0 || kernel_size == 0) {
 		printf("warning: no kernel available\n");
 		return -1;
 	}
 
 	data_addr = load_addr;
-	if (setup_size != 0) {
-		qfw_read_entry(qfw_dev, FW_CFG_SETUP_DATA,
-			       le32_to_cpu(setup_size), data_addr);
-		data_addr += le32_to_cpu(setup_size);
-	}
+	qfw_read_entry(qfw_dev, FW_CFG_SETUP_DATA,
+		       le32_to_cpu(setup_size), data_addr);
+	data_addr += le32_to_cpu(setup_size);
 
 	qfw_read_entry(qfw_dev, FW_CFG_KERNEL_DATA,
 		       le32_to_cpu(kernel_size), data_addr);
@@ -123,7 +121,11 @@ static int qemu_fwcfg_do_load(struct cmd_tbl *cmdtp, int flag,
 	env = env_get("loadaddr");
 	load_addr = env ?
 		(void *)hextoul(env, NULL) :
-		(void *)CONFIG_SYS_LOAD_ADDR;
+#ifdef CONFIG_LOADADDR
+		(void *)CONFIG_LOADADDR;
+#else
+		NULL;
+#endif
 
 	env = env_get("ramdiskaddr");
 	initrd_addr = env ?

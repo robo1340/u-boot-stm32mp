@@ -126,6 +126,8 @@ int bb_miiphy_write(struct mii_dev *miidev, int addr, int devad, int reg,
 #define ESTATUS_1000XF		0x8000
 #define ESTATUS_1000XH		0x4000
 
+#ifdef CONFIG_DM_MDIO
+
 /**
  * struct mdio_perdev_priv - Per-device class data for MDIO DM
  *
@@ -158,46 +160,6 @@ struct mdio_ops {
 void dm_mdio_probe_devices(void);
 
 /**
- * dm_mdio_read - Wrapper over .read() operation for DM MDIO
- *
- * @mdiodev: mdio device
- * @addr: PHY address on MDIO bus
- * @devad: device address on PHY if C45; should be MDIO_DEVAD_NONE if C22
- * @reg: register address
- * Return: register value if non-negative, -error code otherwise
- */
-int dm_mdio_read(struct udevice *mdio_dev, int addr, int devad, int reg);
-
-/**
- * dm_mdio_write - Wrapper over .write() operation for DM MDIO
- *
- * @mdiodev: mdio device
- * @addr: PHY address on MDIO bus
- * @devad: device address on PHY if C45; should be MDIO_DEVAD_NONE if C22
- * @reg: register address
- * @val: value to write
- * Return: 0 on success, -error code otherwise
- */
-int dm_mdio_write(struct udevice *mdio_dev, int addr, int devad, int reg, u16 val);
-
-/**
- * dm_mdio_reset - Wrapper over .reset() operation for DM MDIO
- *
- * @mdiodev: mdio device
- * Return: 0 on success, -error code otherwise
- */
-int dm_mdio_reset(struct udevice *mdio_dev);
-
-/**
- * dm_phy_find_by_ofnode - Find PHY device by ofnode
- *
- * @phynode: PHY's ofnode
- *
- * Return: pointer to phy_device, or NULL on error
- */
-struct phy_device *dm_phy_find_by_ofnode(ofnode phynode);
-
-/**
  * dm_mdio_phy_connect - Wrapper over phy_connect for DM MDIO
  *
  * @mdiodev: mdio device the PHY is accesible on
@@ -205,7 +167,7 @@ struct phy_device *dm_phy_find_by_ofnode(ofnode phynode);
  * @ethdev: ethernet device to connect to the PHY
  * @interface: MAC-PHY protocol
  *
- * Return: pointer to phy_device, or 0 on error
+ * @return pointer to phy_device, or 0 on error
  */
 struct phy_device *dm_mdio_phy_connect(struct udevice *mdiodev, int phyaddr,
 				       struct udevice *ethdev,
@@ -219,9 +181,13 @@ struct phy_device *dm_mdio_phy_connect(struct udevice *mdiodev, int phyaddr,
  *
  * @ethdev: ethernet device
  *
- * Return: pointer to phy_device, or 0 on error
+ * @return pointer to phy_device, or 0 on error
  */
 struct phy_device *dm_eth_phy_connect(struct udevice *ethdev);
+
+#endif
+
+#ifdef CONFIG_DM_MDIO_MUX
 
 /* indicates none of the child buses is selected */
 #define MDIO_MUX_SELECT_NONE	-1
@@ -238,5 +204,7 @@ struct mdio_mux_ops {
 };
 
 #define mdio_mux_get_ops(dev) ((struct mdio_mux_ops *)(dev)->driver->ops)
+
+#endif
 
 #endif

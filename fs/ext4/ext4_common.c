@@ -427,14 +427,14 @@ uint16_t ext4fs_checksum_update(uint32_t i)
 	if (le32_to_cpu(fs->sb->feature_ro_compat) & EXT4_FEATURE_RO_COMPAT_GDT_CSUM) {
 		int offset = offsetof(struct ext2_block_group, bg_checksum);
 
-		crc = crc16(~0, (__u8 *)fs->sb->unique_id,
+		crc = ext2fs_crc16(~0, fs->sb->unique_id,
 				   sizeof(fs->sb->unique_id));
-		crc = crc16(crc, (__u8 *)&le32_i, sizeof(le32_i));
-		crc = crc16(crc, (__u8 *)desc, offset);
+		crc = ext2fs_crc16(crc, &le32_i, sizeof(le32_i));
+		crc = ext2fs_crc16(crc, desc, offset);
 		offset += sizeof(desc->bg_checksum);	/* skip checksum */
 		assert(offset == sizeof(*desc));
 		if (offset < fs->gdsize) {
-			crc = crc16(crc, (__u8 *)desc + offset,
+			crc = ext2fs_crc16(crc, (__u8 *)desc + offset,
 					   fs->gdsize - offset);
 		}
 	}
@@ -2368,10 +2368,6 @@ int ext4fs_mount(unsigned part_length)
 	struct ext2_data *data;
 	int status;
 	struct ext_filesystem *fs = get_fs();
-
-	if (part_length < SUPERBLOCK_SIZE)
-		return 0;
-
 	data = zalloc(SUPERBLOCK_SIZE);
 	if (!data)
 		return 0;
@@ -2419,7 +2415,7 @@ int ext4fs_mount(unsigned part_length)
 
 	return 1;
 fail:
-	log_debug("Failed to mount ext2 filesystem...\n");
+	printf("Failed to mount ext2 filesystem...\n");
 fail_noerr:
 	free(data);
 	ext4fs_root = NULL;

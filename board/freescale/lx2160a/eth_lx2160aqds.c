@@ -775,11 +775,10 @@ int fdt_fixup_board_phy(void *fdt)
 	int fpga_offset, offset, subnodeoffset;
 	struct mii_dev *mii_dev;
 	struct list_head *mii_devs, *entry;
-	int ret, dpmac_id, i;
+	int ret, dpmac_id, phandle, i;
 	struct phy_device *phy_dev;
 	char ethname[ETH_NAME_LEN];
 	phy_interface_t	phy_iface;
-	uint32_t phandle;
 
 	ret = 0;
 	/* we know FPGA is connected to i2c0, therefore search path directly,
@@ -795,10 +794,7 @@ int fdt_fixup_board_phy(void *fdt)
 		return fpga_offset;
 	}
 
-	ret = fdt_generate_phandle(fdt, &phandle);
-	if (ret < 0)
-		return ret;
-
+	phandle = fdt_alloc_phandle(fdt);
 	mii_devs = mdio_get_list_head();
 
 	list_for_each(entry, mii_devs) {

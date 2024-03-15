@@ -27,6 +27,8 @@
 #define EMI1_SLOT2	3
 #define EMI1_SLOT4	4
 
+static int mdio_mux[NUM_FM_PORTS];
+
 static const char * const mdio_names[] = {
 	"LS1046AQDS_MDIO_RGMII1",
 	"LS1046AQDS_MDIO_RGMII2",
@@ -37,11 +39,7 @@ static const char * const mdio_names[] = {
 };
 
 /* Map SerDes 1 & 2 lanes to default slot. */
-#ifdef CONFIG_FMAN_ENET
-static int mdio_mux[NUM_FM_PORTS];
-
 static u8 lane_to_slot[] = {1, 1, 1, 1, 0, 4, 0 , 0};
-#endif
 
 static const char *ls1046aqds_mdio_name_for_muxval(u8 muxval)
 {
@@ -73,7 +71,6 @@ struct mii_dev *mii_dev_for_muxval(u8 muxval)
 	return bus;
 }
 
-#ifdef CONFIG_FMAN_ENET
 struct ls1046aqds_mdio {
 	u8 muxval;
 	struct mii_dev *realbus;
@@ -181,7 +178,7 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 		default:
 			break;
 		}
-	} else if (fm_info_get_enet_if(port) == PHY_INTERFACE_MODE_2500BASEX) {
+	} else if (fm_info_get_enet_if(port) == PHY_INTERFACE_MODE_SGMII_2500) {
 		/* 2.5G SGMII interface */
 		f_link.phy_id = cpu_to_fdt32(port);
 		f_link.duplex = cpu_to_fdt32(1);
@@ -192,7 +189,7 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 		fdt_delprop(fdt, offset, "phy-handle");
 		fdt_setprop(fdt, offset, "fixed-link", &f_link, sizeof(f_link));
 		fdt_setprop_string(fdt, offset, "phy-connection-type",
-				   "2500base-x");
+				   "sgmii-2500");
 	} else if (fm_info_get_enet_if(port) == PHY_INTERFACE_MODE_QSGMII) {
 		switch (port) {
 		case FM1_DTSEC1:
@@ -220,13 +217,13 @@ void board_ft_fman_fixup_port(void *fdt, char *compat, phys_addr_t addr,
 			/* Backplane KR mode: skip fixups */
 			printf("Interface %d in backplane KR mode\n", port);
 		} else {
-			/* 10GBase-R interface */
+			/* XFI interface */
 			f_link.phy_id = cpu_to_fdt32(port);
 			f_link.duplex = cpu_to_fdt32(1);
 			f_link.link_speed = cpu_to_fdt32(10000);
 			f_link.pause = 0;
 			f_link.asym_pause = 0;
-			/* no PHY for 10GBase-R */
+			/* no PHY for XFI */
 			fdt_delprop(fdt, offset, "phy-handle");
 			fdt_setprop(fdt, offset, "fixed-link", &f_link,
 				    sizeof(f_link));
@@ -266,6 +263,7 @@ void fdt_fixup_board_enet(void *fdt)
 
 int board_eth_init(struct bd_info *bis)
 {
+#ifdef CONFIG_FMAN_ENET
 	int i, idx, lane, slot, interface;
 	struct memac_mdio_info dtsec_mdio_info;
 	struct ccsr_gur *gur = (void *)(CONFIG_SYS_FSL_GUTS_ADDR);
@@ -425,7 +423,7 @@ int board_eth_init(struct bd_info *bis)
 	}
 
 	cpu_eth_init(bis);
+#endif /* CONFIG_FMAN_ENET */
 
 	return pci_eth_init(bis);
 }
-#endif /* CONFIG_FMAN_ENET */

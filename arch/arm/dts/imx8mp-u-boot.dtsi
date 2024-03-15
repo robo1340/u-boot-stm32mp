@@ -18,9 +18,6 @@
 &clk {
 	u-boot,dm-spl;
 	u-boot,dm-pre-reloc;
-	/delete-property/ assigned-clocks;
-	/delete-property/ assigned-clock-parents;
-	/delete-property/ assigned-clock-rates;
 };
 
 &osc_32k {
@@ -61,34 +58,28 @@
 			align-end = <4>;
 		};
 
-		ddr-1d-imem-fw {
+		blob_1: blob-ext@1 {
 			filename = "lpddr4_pmu_train_1d_imem_202006.bin";
-			type = "blob-ext";
-			align-end = <4>;
+			size = <0x8000>;
 		};
 
-		ddr-1d-dmem-fw {
+		blob_2: blob-ext@2 {
 			filename = "lpddr4_pmu_train_1d_dmem_202006.bin";
-			type = "blob-ext";
-			align-end = <4>;
+			size = <0x4000>;
 		};
 
-		ddr-2d-imem-fw {
+		blob_3: blob-ext@3 {
 			filename = "lpddr4_pmu_train_2d_imem_202006.bin";
-			type = "blob-ext";
-			align-end = <4>;
+			size = <0x8000>;
 		};
 
-		ddr-2d-dmem-fw {
+		blob_4: blob-ext@4 {
 			filename = "lpddr4_pmu_train_2d_dmem_202006.bin";
-			type = "blob-ext";
-			align-end = <4>;
+			size = <0x4000>;
 		};
 	};
 
-	spl {
-		filename = "spl.bin";
-
+	flash {
 		mkimage {
 			args = "-n spl/u-boot-spl.cfgout -T imx8mimage -e 0x920000";
 
@@ -103,9 +94,8 @@
 
 		fit {
 			description = "Configuration to load ATF before U-Boot";
-			fit,external-offset = <CONFIG_FIT_EXTERNAL_OFFSET>;
-			fit,fdt-list = "of-list";
 			#address-cells = <1>;
+			fit,external-offset = <CONFIG_FIT_EXTERNAL_OFFSET>;
 
 			images {
 				uboot {
@@ -128,13 +118,12 @@
 					load = <0x970000>;
 					entry = <0x970000>;
 
-					atf_blob: atf-blob {
+					atf_blob: blob-ext {
 						filename = "bl31.bin";
-						type = "atf-bl31";
 					};
 				};
 
-				@fdt-SEQ {
+				fdt {
 					description = "NAME";
 					type = "flat_dt";
 					compression = "none";
@@ -146,30 +135,15 @@
 			};
 
 			configurations {
-				default = "@config-DEFAULT-SEQ";
+				default = "conf";
 
-				@config-SEQ {
+				conf {
 					description = "NAME";
-					fdt = "fdt-SEQ";
 					firmware = "uboot";
 					loadables = "atf";
+					fdt = "fdt";
 				};
 			};
-		};
-	};
-
-	imx-boot {
-		filename = "flash.bin";
-		pad-byte = <0x00>;
-
-		spl: blob-ext@1 {
-			filename = "spl.bin";
-			offset = <0x0>;
-		};
-
-		uboot: blob-ext@2 {
-			filename = "u-boot.itb";
-			offset = <0x58000>;
 		};
 	};
 };

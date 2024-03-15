@@ -38,7 +38,7 @@
  *
  * @param dev		device to use
  * @param offset	GPIO offset within bank
- * Return: -1 on error, 0 if GPIO is low, >0 if high
+ * @return -1 on error, 0 if GPIO is low, >0 if high
  */
 int sandbox_gpio_get_value(struct udevice *dev, unsigned int offset);
 
@@ -48,7 +48,7 @@ int sandbox_gpio_get_value(struct udevice *dev, unsigned int offset);
  * @param dev		device to use
  * @param offset	GPIO offset within bank
  * @param value		value to set (0 for low, non-zero for high)
- * Return: -1 on error, 0 if ok
+ * @return -1 on error, 0 if ok
  */
 int sandbox_gpio_set_value(struct udevice *dev, unsigned int offset, int value);
 
@@ -57,7 +57,7 @@ int sandbox_gpio_set_value(struct udevice *dev, unsigned int offset, int value);
  *
  * @param dev		device to use
  * @param offset	GPIO offset within bank
- * Return: -1 on error, 0 if GPIO is input, >0 if output
+ * @return -1 on error, 0 if GPIO is input, >0 if output
  */
 int sandbox_gpio_get_direction(struct udevice *dev, unsigned int offset);
 
@@ -66,8 +66,8 @@ int sandbox_gpio_get_direction(struct udevice *dev, unsigned int offset);
  *
  * @param dev		device to use
  * @param offset	GPIO offset within bank
- * @param output	0 to set as input, 1 to set as output
- * Return: -1 on error, 0 if ok
+ * @param output 	0 to set as input, 1 to set as output
+ * @return -1 on error, 0 if ok
  */
 int sandbox_gpio_set_direction(struct udevice *dev, unsigned int offset,
 			       int output);
@@ -77,7 +77,7 @@ int sandbox_gpio_set_direction(struct udevice *dev, unsigned int offset,
  *
  * @param dev		device to use
  * @param offset	GPIO offset within bank
- * Return: dir_flags: bitfield accesses by GPIOD_ defines
+ * @return dir_flags: bitfield accesses by GPIOD_ defines
  */
 ulong sandbox_gpio_get_flags(struct udevice *dev, unsigned int offset);
 
@@ -87,7 +87,7 @@ ulong sandbox_gpio_get_flags(struct udevice *dev, unsigned int offset);
  * @param dev		device to use
  * @param offset	GPIO offset within bank
  * @param flags		bitfield accesses by GPIOD_ defines
- * Return: -1 on error, 0 if ok
+ * @return -1 on error, 0 if ok
  */
 int sandbox_gpio_set_flags(struct udevice *dev, unsigned int offset,
 			   ulong flags);

@@ -37,7 +37,7 @@ static const void *pfe_esbc_hdr_addr;
  * @param pe_mask	Mask of PE id's to load firmware to
  * @param pfe_firmware	Pointer to the firmware image
  *
- * Return:		0 on success, a negative value on error
+ * @return		0 on success, a negative value on error
  */
 static int pfe_load_elf(int pe_mask, uint8_t *pfe_firmware)
 {
@@ -99,18 +99,56 @@ err:
  * @param size pointer to size of the firmware
  * @param fw_name pfe firmware name, either class or tmu
  *
- * Return: 0 on success, a negative value on error
+ * @return 0 on success, a negative value on error
  */
 static int pfe_get_fw(const void **data,
 		      size_t *size, char *fw_name)
 {
-	return fit_get_data_conf_prop(pfe_fit_addr, fw_name, data, size);
+	int conf_node_off, fw_node_off;
+	char *conf_node_name = NULL;
+	char *desc;
+	int ret = 0;
+
+	conf_node_name = PFE_FIRMWARE_FIT_CNF_NAME;
+
+	conf_node_off = fit_conf_get_node(pfe_fit_addr, conf_node_name);
+	if (conf_node_off < 0) {
+		printf("PFE Firmware: %s: no such config\n", conf_node_name);
+		return -ENOENT;
+	}
+
+	fw_node_off = fit_conf_get_prop_node(pfe_fit_addr, conf_node_off,
+					     fw_name);
+	if (fw_node_off < 0) {
+		printf("PFE Firmware: No '%s' in config\n",
+		       fw_name);
+		return -ENOLINK;
+	}
+
+	if (!(fit_image_verify(pfe_fit_addr, fw_node_off))) {
+		printf("PFE Firmware: Bad firmware image (bad CRC)\n");
+		return -EINVAL;
+	}
+
+	if (fit_image_get_data(pfe_fit_addr, fw_node_off, data, size)) {
+		printf("PFE Firmware: Can't get %s subimage data/size",
+		       fw_name);
+		return -ENOENT;
+	}
+
+	ret = fit_get_desc(pfe_fit_addr, fw_node_off, &desc);
+	if (ret)
+		printf("PFE Firmware: Can't get description\n");
+	else
+		printf("%s\n", desc);
+
+	return ret;
 }
 
 /*
  * Check PFE FIT image
  *
- * Return: 0 on success, a negative value on error
+ * @return 0 on success, a negative value on error
  */
 static int pfe_fit_check(void)
 {
@@ -134,20 +172,31 @@ static int pfe_fit_check(void)
 int pfe_spi_flash_init(void)
 {
 	struct spi_flash *pfe_flash;
+	struct udevice *new;
 	int ret = 0;
 	void *addr = malloc(CONFIG_SYS_LS_PFE_FW_LENGTH);
 
 	if (!addr)
 		return -ENOMEM;
 
-	pfe_flash = spi_flash_probe(CONFIG_SYS_FSL_PFE_SPI_BUS,
-				    CONFIG_SYS_FSL_PFE_SPI_CS,
-				    CONFIG_SYS_FSL_PFE_SPI_MAX_HZ,
-				    CONFIG_SYS_FSL_PFE_SPI_MODE);
+	ret = spi_flash_probe_bus_cs(CONFIG_ENV_SPI_BUS,
+				     CONFIG_ENV_SPI_CS,
+				     CONFIG_ENV_SPI_MAX_HZ,
+				     CONFIG_ENV_SPI_MODE,
+				     &new);
+	if (ret) {
+		printf("SF: failed to probe spi\n");
+		free(addr);
+		device_remove(new, DM_REMOVE_NORMAL);
+		return ret;
+	}
 
+
+	pfe_flash = dev_get_uclass_priv(new);
 	if (!pfe_flash) {
 		printf("SF: probe for pfe failed\n");
 		free(addr);
+		device_remove(new, DM_REMOVE_NORMAL);
 		return -ENODEV;
 	}
 
@@ -199,7 +248,7 @@ int pfe_spi_flash_init(void)
  * firmware files
  * Takes PE's out of reset
  *
- * Return: 0 on success, a negative value on error
+ * @return 0 on success, a negative value on error
  */
 int pfe_firmware_init(void)
 {

@@ -23,7 +23,7 @@ SECTIONS
 {
 	.text : {
 		. = ALIGN(8);
-		__image_copy_start = .;
+		*(.__image_copy_start)
 		CPUDIR/start.o (.text*)
 		*(.text*)
 	} >.sram
@@ -46,9 +46,9 @@ SECTIONS
 	} >.sram
 #endif
 
-	__u_boot_list : {
+	.u_boot_list : {
 		. = ALIGN(8);
-		KEEP(*(SORT(__u_boot_list*)));
+		KEEP(*(SORT(.u_boot_list*)));
 	} >.sram
 
 	.image_copy_end : {
@@ -84,8 +84,4 @@ SECTIONS
 	/DISCARD/ : { *(.plt*) }
 	/DISCARD/ : { *(.interp*) }
 	/DISCARD/ : { *(.gnu*) }
-
-#ifdef CONFIG_LINUX_KERNEL_IMAGE_HEADER
-#include "linux-kernel-image-header-vars.h"
-#endif
 }

@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later OR BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause */
 /*
- * Copyright (C) 2022, STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2021, STMicroelectronics - All Rights Reserved
  *
- * Configuration settings for the STM32MP13x CPU
+ * Configuration settings for the STM32MP15x CPU
  */
 
 #ifndef __CONFIG_STM32MP13_COMMMON_H
@@ -14,6 +14,18 @@
  * Configuration of the external SRAM memory used by U-Boot
  */
 #define CONFIG_SYS_SDRAM_BASE		STM32_DDR_BASE
+#define CONFIG_SYS_INIT_SP_ADDR		(CONFIG_SYS_TEXT_BASE + SZ_4M)
+
+/*
+ * Console I/O buffer size
+ */
+#define CONFIG_SYS_CBSIZE		SZ_1K
+
+/*
+ * default load address used for command tftp,  bootm , loadb, ...
+ */
+#define CONFIG_LOADADDR			0xc2000000
+#define CONFIG_SYS_LOAD_ADDR		CONFIG_LOADADDR
 
 /*
  * For booting Linux, use the first 256 MB of memory, since this is
@@ -21,16 +33,22 @@
  */
 #define CONFIG_SYS_BOOTMAPSZ		SZ_256M
 
+/* Extend size of kernel image for uncompression */
+#define CONFIG_SYS_BOOTM_LEN		SZ_32M
+
 /*MMC SD*/
 #define CONFIG_SYS_MMC_MAX_DEVICE	2
 
 /* NAND support */
+#define CONFIG_SYS_NAND_ONFI_DETECTION
 #define CONFIG_SYS_MAX_NAND_DEVICE	1
 
 /* Ethernet need */
 #ifdef CONFIG_DWC_ETH_QOS
 #define CONFIG_SYS_NONCACHED_MEMORY	(1 * SZ_1M)
 #define CONFIG_SERVERIP                 192.168.1.1
+#define CONFIG_BOOTP_SERVERIP
+#define CONFIG_SYS_AUTOLOAD		"no"
 #endif
 
 /*****************************************************************************/
@@ -52,7 +70,7 @@
 #endif
 
 #ifdef CONFIG_CMD_UBIFS
-#define BOOT_TARGET_UBIFS(func)	func(UBIFS, ubifs, 0, UBI, boot)
+#define BOOT_TARGET_UBIFS(func)	func(UBIFS, ubifs, 0)
 #else
 #define BOOT_TARGET_UBIFS(func)
 #endif

@@ -10,6 +10,7 @@
 #include <fastboot.h>
 #include <fastboot-internal.h>
 #include <fb_mmc.h>
+#include <flash.h>
 #include <image-sparse.h>
 #include <image.h>
 #include <log.h>
@@ -39,7 +40,7 @@ static int raw_part_get_info_by_name(struct blk_desc *dev_desc,
 
 	/* check for raw partition descriptor */
 	strcpy(env_desc_name, "fastboot_raw_partition_");
-	strlcat(env_desc_name, name, sizeof(env_desc_name));
+	strlcat(env_desc_name, name, PART_NAME_LEN);
 	raw_part_desc = strdup(env_get(env_desc_name));
 	if (raw_part_desc == NULL)
 		return -ENODEV;
@@ -103,18 +104,23 @@ static int part_get_info_by_name_or_alias(struct blk_desc **dev_desc,
 					  const char *name,
 					  struct disk_partition *info)
 {
-	/* strlen("fastboot_partition_alias_") + PART_NAME_LEN + 1 */
-	char env_alias_name[25 + PART_NAME_LEN + 1];
-	char *aliased_part_name;
+	int ret;
 
-	/* check for alias */
-	strlcpy(env_alias_name, "fastboot_partition_alias_", sizeof(env_alias_name));
-	strlcat(env_alias_name, name, sizeof(env_alias_name));
-	aliased_part_name = env_get(env_alias_name);
-	if (aliased_part_name)
-		name = aliased_part_name;
+	ret = do_get_part_info(dev_desc, name, info);
+	if (ret < 0) {
+		/* strlen("fastboot_partition_alias_") + PART_NAME_LEN + 1 */
+		char env_alias_name[25 + PART_NAME_LEN + 1];
+		char *aliased_part_name;
 
-	return do_get_part_info(dev_desc, name, info);
+		/* check for alias */
+		strcpy(env_alias_name, "fastboot_partition_alias_");
+		strlcat(env_alias_name, name, PART_NAME_LEN);
+		aliased_part_name = env_get(env_alias_name);
+		if (aliased_part_name != NULL)
+			ret = do_get_part_info(dev_desc, aliased_part_name,
+					       info);
+	}
+	return ret;
 }
 
 /**
@@ -283,7 +289,7 @@ static void fb_mmc_boot_ops(struct blk_desc *dev_desc, void *buffer,
  * @param[in] info Boot partition info
  * @param[out] hdr Where to store read boot image header
  *
- * Return: Boot image header sectors count or 0 on error
+ * @return Boot image header sectors count or 0 on error
  */
 static lbaint_t fb_mmc_get_boot_header(struct blk_desc *dev_desc,
 				       struct disk_partition *info,
@@ -330,7 +336,7 @@ static lbaint_t fb_mmc_get_boot_header(struct blk_desc *dev_desc,
  * @param download_buffer Address to fastboot buffer with zImage in it
  * @param download_bytes Size of fastboot buffer, in bytes
  *
- * Return: 0 on success or -1 on error
+ * @return 0 on success or -1 on error
  */
 static int fb_mmc_update_zimage(struct blk_desc *dev_desc,
 				void *download_buffer,

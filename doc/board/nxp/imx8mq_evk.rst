@@ -43,7 +43,7 @@ Build U-Boot
 
    $ export CROSS_COMPILE=aarch64-poky-linux-
    $ make imx8mq_evk_defconfig
-   $ make
+   $ make flash.bin
 
 Burn the flash.bin to MicroSD card offset 33KB:
 

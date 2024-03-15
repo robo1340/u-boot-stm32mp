@@ -17,7 +17,6 @@
 #include <asm/arch/crm_regs.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/iomux-mx53.h>
-#include <asm/mach-imx/boot_mode.h>
 #include <asm/mach-imx/mx5_video.h>
 #include <asm/mach-imx/video.h>
 #include <asm/gpio.h>
@@ -226,21 +225,16 @@ static const char *lvds_compat_string;
 
 static int detect_lvds(struct display_info_t const *dev)
 {
-	struct udevice *idev, *ibus;
 	u8 touchid[23];
 	u8 *touchptr = &touchid[0];
 	int ret;
 
-	ret = uclass_get_device_by_seq(UCLASS_I2C, 0, &ibus);
-	if (ret)
-		return 0;
-
-	ret = dm_i2c_probe(ibus, 0x38, 0, &idev);
+	ret = i2c_set_bus_num(0);
 	if (ret)
 		return 0;
 
 	/* Touchscreen is at address 0x38, ID register is 0xbb. */
-	ret = dm_i2c_read(idev, 0xbb, touchid, sizeof(touchid));
+	ret = i2c_read(0x38, 0xbb, 1, touchid, sizeof(touchid));
 	if (ret)
 		return 0;
 
@@ -340,10 +334,6 @@ int splash_screen_prepare(void)
 
 int board_late_init(void)
 {
-#ifdef CONFIG_CMD_BMODE
-	add_board_boot_modes(NULL);
-#endif
-
 #if defined(CONFIG_VIDEO_IPUV3)
 	struct udevice *dev;
 	int xpos, ypos, ret;
@@ -388,6 +378,23 @@ splasherr:
 	free(dst);
 #endif
 	return 0;
+}
+
+#define I2C_PAD_CTRL	(PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | \
+			 PAD_CTL_PUS_100K_UP | PAD_CTL_ODE)
+
+static void setup_iomux_i2c(void)
+{
+	static const iomux_v3_cfg_t i2c_pads[] = {
+		/* I2C1 */
+		NEW_PAD_CTRL(MX53_PAD_EIM_D28__I2C1_SDA, I2C_PAD_CTRL),
+		NEW_PAD_CTRL(MX53_PAD_EIM_D21__I2C1_SCL, I2C_PAD_CTRL),
+		/* I2C2 */
+		NEW_PAD_CTRL(MX53_PAD_EIM_D16__I2C2_SDA, I2C_PAD_CTRL),
+		NEW_PAD_CTRL(MX53_PAD_EIM_EB2__I2C2_SCL, I2C_PAD_CTRL),
+	};
+
+	imx_iomux_v3_setup_multiple_pads(i2c_pads, ARRAY_SIZE(i2c_pads));
 }
 
 static void setup_iomux_video(void)
@@ -493,6 +500,7 @@ int board_early_init_f(void)
 {
 	setup_iomux_uart();
 	setup_iomux_fec();
+	setup_iomux_i2c();
 	setup_iomux_nand();
 	setup_iomux_video();
 

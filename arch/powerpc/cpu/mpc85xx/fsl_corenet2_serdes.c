@@ -399,3 +399,4 @@ const char *serdes_clock_to_string(u32 clock)
 #endif
 	}
 }
+

@@ -110,7 +110,7 @@
 #define RST_SCMI_SPI6		0
 #define RST_SCMI_I2C4		1
 #define RST_SCMI_I2C6		2
-#define RST_SCMI_USART1	3
+#define RST_SCMI_USART1		3
 #define RST_SCMI_STGEN		4
 #define RST_SCMI_GPIOZ		5
 #define RST_SCMI_CRYP1		6

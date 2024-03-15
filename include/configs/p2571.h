@@ -15,6 +15,7 @@
 #define CONFIG_TEGRA_BOARD_STRING	"NVIDIA P2571"
 
 /* Board-specific serial config */
+#define CONFIG_SERIAL_MULTI
 #define CONFIG_TEGRA_ENABLE_UARTA
 
 /* Environment in eMMC, at the end of 2nd "boot sector" */
@@ -22,6 +23,7 @@
 /* SPI */
 #define CONFIG_SPI_FLASH_SIZE		(4 << 20)
 
+#include "tegra-common-usb-gadget.h"
 #include "tegra-common-post.h"
 
 #endif /* _P2571_H */

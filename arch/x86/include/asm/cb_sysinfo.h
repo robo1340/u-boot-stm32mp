@@ -222,14 +222,14 @@ extern struct sysinfo_t lib_sysinfo;
  * so.
  *
  * @info: Place to put the parsed information
- * Return: 0 if OK, -ENOENT if no table found
+ * @return 0 if OK, -ENOENT if no table found
  */
 int get_coreboot_info(struct sysinfo_t *info);
 
 /**
  * cb_get_sysinfo() - get a pointer to the parsed coreboot sysinfo
  *
- * Return: pointer to sysinfo, or NULL if not available
+ * @return pointer to sysinfo, or NULL if not available
  */
 const struct sysinfo_t *cb_get_sysinfo(void);
 

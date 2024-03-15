@@ -54,7 +54,7 @@ static const char *get_mtdids(void)
  * @altname: Alternate name to return
  * @max_len: Length of the alternate name buffer
  *
- * Return: 0 on success, an error otherwise.
+ * @return 0 on success, an error otherwise.
  */
 int mtd_search_alternate_name(const char *mtdname, char *altname,
 			      unsigned int max_len)
@@ -325,18 +325,16 @@ int mtd_probe_devices(void)
 	mtd_probe_uclass_spi_nor_devs();
 
 	/*
-	 * Check if the MTD dev list is updated or
-	 * if mtdparts/mtdids changed,
+	 * Check if mtdparts/mtdids changed, if the MTD dev list was updated
 	 * or if our previous attempt to delete existing partititions failed.
 	 * In any of these cases we want to update the partitions, otherwise,
 	 * everything is up-to-date and we can return 0 directly.
 	 */
-	if (!mtd_dev_list_updated() &&
-	    ((!mtdparts && !old_mtdparts && !mtdids && !old_mtdids) ||
-	     (mtdparts && old_mtdparts && mtdids && old_mtdids &&
-	      !mtd_del_all_parts_failed &&
-	      !strcmp(mtdparts, old_mtdparts) &&
-	      !strcmp(mtdids, old_mtdids))))
+	if ((!mtdparts && !old_mtdparts && !mtdids && !old_mtdids) ||
+	    (mtdparts && old_mtdparts && mtdids && old_mtdids &&
+	     !mtd_dev_list_updated() && !mtd_del_all_parts_failed &&
+	     !strcmp(mtdparts, old_mtdparts) &&
+	     !strcmp(mtdids, old_mtdids)))
 		return 0;
 
 	/* Update the local copy of mtdparts */

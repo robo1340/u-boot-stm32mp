@@ -59,17 +59,14 @@ u32 acpi_fill_madt(u32 current)
 	return current;
 }
 
-int acpi_fill_mcfg(struct acpi_ctx *ctx)
+u32 acpi_fill_mcfg(u32 current)
 {
-	size_t size;
-
 	/* TODO: Derive parameters from SFI MCFG table */
-	size = acpi_create_mcfg_mmconfig
-		((struct acpi_mcfg_mmconfig *)ctx->current,
+	current += acpi_create_mcfg_mmconfig
+		((struct acpi_mcfg_mmconfig *)current,
 		MCFG_BASE_ADDRESS, 0x0, 0x0, 0x0);
-	acpi_inc(ctx, size);
 
-	return 0;
+	return current;
 }
 
 static u32 acpi_fill_csrt_dma(struct acpi_csrt_group *grp)
@@ -103,14 +100,11 @@ static u32 acpi_fill_csrt_dma(struct acpi_csrt_group *grp)
 	return grp->length;
 }
 
-int acpi_fill_csrt(struct acpi_ctx *ctx)
+u32 acpi_fill_csrt(u32 current)
 {
-	int size;
+	current += acpi_fill_csrt_dma((struct acpi_csrt_group *)current);
 
-	size = acpi_fill_csrt_dma(ctx->current);
-	acpi_inc(ctx, size);
-
-	return 0;
+	return current;
 }
 
 int acpi_create_gnvs(struct acpi_global_nvs *gnvs)

@@ -52,13 +52,13 @@ unsigned int kw_winctrl_calcsize(unsigned int sizeval)
 	return (0x0000ffff & j);
 }
 
-static const struct mbus_win windows[] = {
+static struct mbus_win windows[] = {
 	/* Window 0: PCIE MEM address space */
-	{ KW_DEFADR_PCI_MEM, KW_DEFADR_PCI_MEM_SIZE,
+	{ KW_DEFADR_PCI_MEM, 1024 * 1024 * 256,
 	  KWCPU_TARGET_PCIE, KWCPU_ATTR_PCIE_MEM },
 
 	/* Window 1: PCIE IO address space */
-	{ KW_DEFADR_PCI_IO, KW_DEFADR_PCI_IO_SIZE,
+	{ KW_DEFADR_PCI_IO, 1024 * 64,
 	  KWCPU_TARGET_PCIE, KWCPU_ATTR_PCIE_IO },
 
 	/* Window 2: NAND Flash address space */
@@ -278,3 +278,4 @@ int cpu_eth_init(struct bd_info *bis)
 	return 0;
 }
 #endif
+

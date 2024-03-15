@@ -1265,7 +1265,7 @@ int xhci_mem_init(struct xhci_ctrl *ctrl, struct xhci_hccr *hccr,
  * xhci_deregister() - Unregister an XHCI controller
  *
  * @dev:	Controller device
- * Return: 0 if registered, -ve on error
+ * @return 0 if registered, -ve on error
  */
 int xhci_deregister(struct udevice *dev);
 
@@ -1275,7 +1275,7 @@ int xhci_deregister(struct udevice *dev);
  * @dev:	Controller device
  * @hccr:	Host controller control registers
  * @hcor:	Not sure what this means
- * Return: 0 if registered, -ve on error
+ * @return 0 if registered, -ve on error
  */
 int xhci_register(struct udevice *dev, struct xhci_hccr *hccr,
 		  struct xhci_hcor *hcor);

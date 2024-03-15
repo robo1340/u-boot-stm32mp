@@ -10,10 +10,6 @@
 #include <env_callback.h>
 #include <linux/stringify.h>
 
-#ifndef USE_HOSTCC
-#include <generated/environment.h>
-#endif
-
 #ifdef DEFAULT_ENV_INSTANCE_EMBEDDED
 env_t embedded_environment __UBOOT_ENV_SECTION__(environment) = {
 	ENV_CRC,	/* CRC Sum */
@@ -24,9 +20,9 @@ env_t embedded_environment __UBOOT_ENV_SECTION__(environment) = {
 #elif defined(DEFAULT_ENV_INSTANCE_STATIC)
 static char default_environment[] = {
 #elif defined(DEFAULT_ENV_IS_RW)
-char default_environment[] = {
+uchar default_environment[] = {
 #else
-const char default_environment[] = {
+const uchar default_environment[] = {
 #endif
 #ifndef CONFIG_USE_DEFAULT_ENV_FILE
 #ifdef	CONFIG_ENV_CALLBACK_LIST_DEFAULT
@@ -40,6 +36,12 @@ const char default_environment[] = {
 #endif
 #ifdef	CONFIG_BOOTCOMMAND
 	"bootcmd="	CONFIG_BOOTCOMMAND		"\0"
+#endif
+#ifdef	CONFIG_RAMBOOTCOMMAND
+	"ramboot="	CONFIG_RAMBOOTCOMMAND		"\0"
+#endif
+#ifdef	CONFIG_NFSBOOTCOMMAND
+	"nfsboot="	CONFIG_NFSBOOTCOMMAND		"\0"
 #endif
 #if defined(CONFIG_BOOTDELAY)
 	"bootdelay="	__stringify(CONFIG_BOOTDELAY)	"\0"
@@ -59,8 +61,8 @@ const char default_environment[] = {
 #ifdef	CONFIG_SERVERIP
 	"serverip="	__stringify(CONFIG_SERVERIP)	"\0"
 #endif
-#ifdef	CONFIG_SYS_DISABLE_AUTOLOAD
-	"autoload=0\0"
+#ifdef	CONFIG_SYS_AUTOLOAD
+	"autoload="	CONFIG_SYS_AUTOLOAD		"\0"
 #endif
 #ifdef	CONFIG_PREBOOT
 	"preboot="	CONFIG_PREBOOT			"\0"
@@ -77,11 +79,11 @@ const char default_environment[] = {
 #ifdef	CONFIG_HOSTNAME
 	"hostname="	CONFIG_HOSTNAME	"\0"
 #endif
-#ifdef CONFIG_USE_BOOTFILE
+#ifdef	CONFIG_BOOTFILE
 	"bootfile="	CONFIG_BOOTFILE			"\0"
 #endif
-#ifdef	CONFIG_SYS_LOAD_ADDR
-	"loadaddr="	__stringify(CONFIG_SYS_LOAD_ADDR)"\0"
+#ifdef	CONFIG_LOADADDR
+	"loadaddr="	__stringify(CONFIG_LOADADDR)	"\0"
 #endif
 #if defined(CONFIG_PCI_BOOTDELAY) && (CONFIG_PCI_BOOTDELAY > 0)
 	"pcidelay="	__stringify(CONFIG_PCI_BOOTDELAY)"\0"
@@ -108,16 +110,6 @@ const char default_environment[] = {
 #if defined(CONFIG_BOOTCOUNT_BOOTLIMIT) && (CONFIG_BOOTCOUNT_BOOTLIMIT > 0)
 	"bootlimit="	__stringify(CONFIG_BOOTCOUNT_BOOTLIMIT)"\0"
 #endif
-#ifdef CONFIG_MTDIDS_DEFAULT
-	 "mtdids="	CONFIG_MTDIDS_DEFAULT		"\0"
-#endif
-#ifdef CONFIG_MTDPARTS_DEFAULT
-	"mtdparts="	CONFIG_MTDPARTS_DEFAULT		"\0"
-#endif
-#ifdef CONFIG_EXTRA_ENV_TEXT
-	/* This is created in the Makefile */
-	CONFIG_EXTRA_ENV_TEXT
-#endif
 #ifdef	CONFIG_EXTRA_ENV_SETTINGS
 	CONFIG_EXTRA_ENV_SETTINGS
 #endif
@@ -129,9 +121,3 @@ const char default_environment[] = {
 	}
 #endif
 };
-
-#if !defined(USE_HOSTCC) && !defined(DEFAULT_ENV_INSTANCE_EMBEDDED)
-#include <env_internal.h>
-static_assert(sizeof(default_environment) <= ENV_SIZE,
-	      "Default environment is too large");
-#endif

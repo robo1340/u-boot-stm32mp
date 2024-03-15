@@ -8,13 +8,12 @@
 #include <common.h>
 #include <command.h>
 #include <env.h>
+#include <flash.h>
 #include <image.h>
 #include <net.h>
 #include <vsprintf.h>
 #include <errno.h>
 #include <dm.h>
-#include <fuse.h>
-#include <mach/efuse.h>
 
 #include <spi_flash.h>
 #include <spi.h>
@@ -27,7 +26,6 @@
 #endif
 #include <u-boot/sha1.h>
 #include <u-boot/sha256.h>
-#include <u-boot/sha512.h>
 
 #if defined(CONFIG_ARMADA_8K)
 #define MAIN_HDR_MAGIC		0xB105B002
@@ -58,21 +56,6 @@ struct mvebu_image_header {
 #define IMAGE_VERSION_3_6_0	0x030600
 #define IMAGE_VERSION_3_5_0	0x030500
 
-struct tim_boot_flash_sign {
-	unsigned int id;
-	const char *name;
-};
-
-struct tim_boot_flash_sign tim_boot_flash_signs[] = {
-	{ 0x454d4d08, "mmc"  },
-	{ 0x454d4d0b, "mmc"  },
-	{ 0x5350490a, "spi"  },
-	{ 0x5350491a, "nand" },
-	{ 0x55415223, "uart" },
-	{ 0x53415432, "sata" },
-	{},
-};
-
 struct common_tim_data {
 	u32	version;
 	u32	identifier;
@@ -100,13 +83,13 @@ struct mvebu_image_info {
 	u32	encrypt_start_offset;
 	u32	encrypt_size;
 };
-#elif defined(CONFIG_ARMADA_32BIT)
+#endif
 
-/* Structure of the main header, version 1 (Armada 370/XP/375/38x/39x) */
+/* Structure of the main header, version 1 (Armada 370/38x/XP) */
 struct a38x_main_hdr_v1 {
 	u8  blockid;               /* 0x0       */
 	u8  flags;                 /* 0x1       */
-	u16 nandpagesize;          /* 0x2-0x3   */
+	u16 reserved2;             /* 0x2-0x3   */
 	u32 blocksize;             /* 0x4-0x7   */
 	u8  version;               /* 0x8       */
 	u8  headersz_msb;          /* 0x9       */
@@ -122,17 +105,6 @@ struct a38x_main_hdr_v1 {
 	u8  ext;                   /* 0x1E      */
 	u8  checksum;              /* 0x1F      */
 };
-
-/*
- * Header for the optional headers, version 1 (Armada 370/XP/375/38x/39x)
- */
-struct a38x_opt_hdr_v1 {
-	u8	headertype;
-	u8	headersz_msb;
-	u16	headersz_lsb;
-	u8	data[0];
-};
-#define A38X_OPT_HDR_V1_SECURE_TYPE	0x1
 
 struct a38x_boot_mode {
 	unsigned int id;
@@ -150,8 +122,6 @@ struct a38x_boot_mode a38x_boot_modes[] = {
 	{ 0xAE, "mmc"  },
 	{},
 };
-
-#endif
 
 struct bubt_dev {
 	char name[8];
@@ -301,8 +271,8 @@ static int spi_burn_image(size_t image_size)
 	u32 erase_bytes;
 
 	/* Probe the SPI bus to get the flash device */
-	flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
-				CONFIG_SF_DEFAULT_CS,
+	flash = spi_flash_probe(CONFIG_ENV_SPI_BUS,
+				CONFIG_ENV_SPI_CS,
 				CONFIG_SF_DEFAULT_SPEED,
 				CONFIG_SF_DEFAULT_MODE);
 	if (!flash) {
@@ -468,14 +438,11 @@ static int is_usb_active(void)
 #ifdef CONFIG_CMD_NET
 static size_t tftp_read_file(const char *file_name)
 {
-	int ret;
-
 	/*
 	 * update global variable image_load_addr before tftp file from network
 	 */
 	image_load_addr = get_load_addr();
-	ret = net_loop(TFTPGET);
-	return ret > 0 ? ret : 0;
+	return net_loop(TFTPGET);
 }
 
 static int is_tftp_active(void)
@@ -579,10 +546,8 @@ static int check_image_header(void)
 	int image_num;
 	u8 hash_160_output[SHA1_SUM_LEN];
 	u8 hash_256_output[SHA256_SUM_LEN];
-	u8 hash_512_output[SHA512_SUM_LEN];
 	sha1_context hash1_text;
 	sha256_context hash256_text;
-	sha512_context hash512_text;
 	u8 *hash_output;
 	u32 hash_algorithm_id;
 	u32 image_size_to_hash;
@@ -652,12 +617,6 @@ static int check_image_header(void)
 			sha256_finish(&hash256_text, hash_256_output);
 			hash_output = hash_256_output;
 			break;
-		case SHA512_SUM_LEN:
-			sha512_starts(&hash512_text);
-			sha512_update(&hash512_text, buff, image_size_to_hash);
-			sha512_finish(&hash512_text, hash_512_output);
-			hash_output = hash_512_output;
-			break;
 		default:
 			printf("Error: Unsupported hash_algorithm_id = %d\n",
 			       hash_algorithm_id);
@@ -676,7 +635,7 @@ static int check_image_header(void)
 
 	return 0;
 }
-#elif defined(CONFIG_ARMADA_32BIT)
+#elif defined(CONFIG_ARMADA_38X)
 static size_t a38x_header_size(const struct a38x_main_hdr_v1 *h)
 {
 	if (h->version == 1)
@@ -701,25 +660,9 @@ static uint8_t image_checksum8(const void *start, size_t len)
 	return csum;
 }
 
-static uint32_t image_checksum32(const void *start, size_t len)
-{
-	u32 csum = 0;
-	const u32 *p = start;
-
-	while (len) {
-		csum += *p;
-		++p;
-		len -= sizeof(u32);
-	}
-
-	return csum;
-}
-
 static int check_image_header(void)
 {
 	u8 checksum;
-	u32 checksum32, exp_checksum32;
-	u32 offset, size;
 	const struct a38x_main_hdr_v1 *hdr =
 		(struct a38x_main_hdr_v1 *)get_load_addr();
 	const size_t image_size = a38x_header_size(hdr);
@@ -730,74 +673,14 @@ static int check_image_header(void)
 	checksum = image_checksum8(hdr, image_size);
 	checksum -= hdr->checksum;
 	if (checksum != hdr->checksum) {
-		printf("Error: Bad A38x image header checksum. 0x%x != 0x%x\n",
+		printf("Error: Bad A38x image checksum. 0x%x != 0x%x\n",
 		       checksum, hdr->checksum);
-		return -ENOEXEC;
-	}
-
-	offset = le32_to_cpu(hdr->srcaddr);
-	size = le32_to_cpu(hdr->blocksize);
-
-	if (hdr->blockid == 0x78) { /* SATA id */
-		if (offset < 1) {
-			printf("Error: Bad A38x image srcaddr.\n");
-			return -ENOEXEC;
-		}
-		offset -= 1;
-		offset *= 512;
-	}
-
-	if (hdr->blockid == 0xAE) /* SDIO id */
-		offset *= 512;
-
-	if (offset % 4 != 0 || size < 4 || size % 4 != 0) {
-		printf("Error: Bad A38x image blocksize.\n");
-		return -ENOEXEC;
-	}
-
-	checksum32 = image_checksum32((u8 *)hdr + offset, size - 4);
-	exp_checksum32 = *(u32 *)((u8 *)hdr + offset + size - 4);
-	if (checksum32 != exp_checksum32) {
-		printf("Error: Bad A38x image data checksum. 0x%08x != 0x%08x\n",
-		       checksum32, exp_checksum32);
 		return -ENOEXEC;
 	}
 
 	printf("Image checksum...OK!\n");
 	return 0;
 }
-
-#if defined(CONFIG_ARMADA_38X)
-static int a38x_image_is_secure(const struct a38x_main_hdr_v1 *hdr)
-{
-	u32 image_size = a38x_header_size(hdr);
-	struct a38x_opt_hdr_v1 *ohdr;
-	u32 ohdr_size;
-
-	if (hdr->version != 1)
-		return 0;
-
-	if (!hdr->ext)
-		return 0;
-
-	ohdr = (struct a38x_opt_hdr_v1 *)(hdr + 1);
-	do {
-		if (ohdr->headertype == A38X_OPT_HDR_V1_SECURE_TYPE)
-			return 1;
-
-		ohdr_size = (ohdr->headersz_msb << 16) | le16_to_cpu(ohdr->headersz_lsb);
-
-		if (!*((u8 *)ohdr + ohdr_size - 4))
-			break;
-
-		ohdr = (struct a38x_opt_hdr_v1 *)((u8 *)ohdr + ohdr_size);
-		if ((u8 *)ohdr >= (u8 *)hdr + image_size)
-			break;
-	} while (1);
-
-	return 0;
-}
-#endif
 #else /* Not ARMADA? */
 static int check_image_header(void)
 {
@@ -806,108 +689,36 @@ static int check_image_header(void)
 }
 #endif
 
-#if defined(CONFIG_ARMADA_3700) || defined(CONFIG_ARMADA_32BIT)
-static u64 fuse_read_u64(u32 bank)
-{
-	u32 val[2];
-	int ret;
-
-	ret = fuse_read(bank, 0, &val[0]);
-	if (ret < 0)
-		return -1;
-
-	ret = fuse_read(bank, 1, &val[1]);
-	if (ret < 0)
-		return -1;
-
-	return ((u64)val[1] << 32) | val[0];
-}
-#endif
-
-#if defined(CONFIG_ARMADA_3700)
-static inline u8 maj3(u8 val)
-{
-	/* return majority vote of 3 bits */
-	return ((val & 0x7) == 3 || (val & 0x7) > 4) ? 1 : 0;
-}
-#endif
-
 static int bubt_check_boot_mode(const struct bubt_dev *dst)
 {
-#if defined(CONFIG_ARMADA_3700) || defined(CONFIG_ARMADA_32BIT)
-	int mode, secure_mode;
-#if defined(CONFIG_ARMADA_3700)
-	const struct tim_boot_flash_sign *boot_modes = tim_boot_flash_signs;
-	const struct common_tim_data *hdr =
-		(struct common_tim_data *)get_load_addr();
-	u32 id = hdr->boot_flash_sign;
-	int is_secure = hdr->trusted != 0;
-	u64 otp_secure_bits = fuse_read_u64(1);
-	int otp_secure_boot = ((maj3(otp_secure_bits >> 0) << 0) |
-			       (maj3(otp_secure_bits >> 4) << 1)) == 2;
-	unsigned int otp_boot_device = (maj3(otp_secure_bits >> 48) << 0) |
-				       (maj3(otp_secure_bits >> 52) << 1) |
-				       (maj3(otp_secure_bits >> 56) << 2) |
-				       (maj3(otp_secure_bits >> 60) << 3);
-#elif defined(CONFIG_ARMADA_32BIT)
-	const struct a38x_boot_mode *boot_modes = a38x_boot_modes;
-	const struct a38x_main_hdr_v1 *hdr =
-		(struct a38x_main_hdr_v1 *)get_load_addr();
-	u32 id = hdr->blockid;
-#if defined(CONFIG_ARMADA_38X)
-	int is_secure = a38x_image_is_secure(hdr);
-	u64 otp_secure_bits = fuse_read_u64(EFUSE_LINE_SECURE_BOOT);
-	int otp_secure_boot = otp_secure_bits & 0x1;
-	unsigned int otp_boot_device = (otp_secure_bits >> 8) & 0x7;
-#endif
-#endif
+	if (IS_ENABLED(CONFIG_ARMADA_38X)) {
+		int mode;
+		const struct a38x_main_hdr_v1 *hdr =
+			(struct a38x_main_hdr_v1 *)get_load_addr();
 
-	for (mode = 0; boot_modes[mode].name; mode++) {
-		if (boot_modes[mode].id == id)
-			break;
-	}
+		for (mode = 0; mode < ARRAY_SIZE(a38x_boot_modes); mode++) {
+			if (strcmp(a38x_boot_modes[mode].name, dst->name) == 0)
+				break;
+		}
 
-	if (!boot_modes[mode].name) {
-		printf("Error: unknown boot device in image header: 0x%x\n", id);
-		return -ENOEXEC;
-	}
+		if (a38x_boot_modes[mode].id == hdr->blockid)
+			return 0;
 
-	if (strcmp(boot_modes[mode].name, dst->name) != 0) {
-		printf("Error: image meant to be booted from \"%s\", not \"%s\"!\n",
-		       boot_modes[mode].name, dst->name);
-		return -ENOEXEC;
-	}
+		for (int i = 0; i < ARRAY_SIZE(a38x_boot_modes); i++) {
+			if (a38x_boot_modes[i].id == hdr->blockid) {
+				printf("Error: A38x image meant to be booted from "
+				       "\"%s\", not \"%s\"!\n",
+				       a38x_boot_modes[i].name, dst->name);
+				return -ENOEXEC;
+			}
+		}
 
-#if defined(CONFIG_ARMADA_38X) || defined(CONFIG_ARMADA_3700)
-	if (otp_secure_bits == (u64)-1) {
-		printf("Error: cannot read OTP secure bits\n");
+		printf("Error: unknown boot device in A38x image header: "
+		       "0x%x\n", hdr->blockid);
 		return -ENOEXEC;
 	} else {
-		if (otp_secure_boot && !is_secure) {
-			printf("Error: secure boot is enabled in OTP but image does not have secure boot header!\n");
-			return -ENOEXEC;
-		} else if (!otp_secure_boot && is_secure) {
-#if defined(CONFIG_ARMADA_3700)
-			/*
-			 * Armada 3700 BootROM rejects trusted image when secure boot is not enabled.
-			 * Armada 385 BootROM accepts image with secure boot header also when secure boot is not enabled.
-			 */
-			printf("Error: secure boot is disabled in OTP but image has secure boot header!\n");
-			return -ENOEXEC;
-#endif
-		} else if (otp_boot_device && otp_boot_device != id) {
-			for (secure_mode = 0; boot_modes[secure_mode].name; secure_mode++) {
-				if (boot_modes[secure_mode].id == otp_boot_device)
-					break;
-			}
-			printf("Error: boot source is set to \"%s\" in OTP but image is for \"%s\"!\n",
-			       boot_modes[secure_mode].name ?: "unknown", dst->name);
-			return -ENOEXEC;
-		}
+		return 0;
 	}
-#endif
-#endif
-	return 0;
 }
 
 static int bubt_verify(const struct bubt_dev *dst)
@@ -1025,11 +836,11 @@ int do_bubt_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	dst = find_bubt_dev(dst_dev_name);
 	if (!dst) {
 		printf("Error: Unknown destination \"%s\"\n", dst_dev_name);
-		return 1;
+		return -EINVAL;
 	}
 
 	if (!bubt_is_dev_active(dst))
-		return 1;
+		return -ENODEV;
 
 	/* Figure out the source device */
 	src = find_bubt_dev(src_dev_name);
@@ -1046,15 +857,15 @@ int do_bubt_cmd(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 
 	image_size = bubt_read_file(src);
 	if (!image_size)
-		return 1;
+		return -EIO;
 
 	err = bubt_verify(dst);
 	if (err)
-		return 1;
+		return err;
 
 	err = bubt_write_file(dst, image_size);
 	if (err)
-		return 1;
+		return err;
 
 	return 0;
 }

@@ -38,3 +38,4 @@ UCLASS_DRIVER(axi) = {
 	.post_bind	= dm_scan_fdt_dev,
 	.flags		= DM_UC_FLAG_SEQ_ALIAS,
 };
+

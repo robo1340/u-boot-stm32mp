@@ -7,8 +7,6 @@
  */
 
 #include <common.h>
-#include <display_options.h>
-#include <init.h>
 #include <asm/bitops.h>
 #include <asm/global_data.h>
 #include <asm/processor.h>
@@ -45,7 +43,7 @@ __weak void init_tlbs(void)
 }
 
 #if !defined(CONFIG_NAND_SPL) && \
-	(!defined(CONFIG_SPL_BUILD) || !CONFIG_IS_ENABLED(INIT_MINIMAL))
+	(!defined(CONFIG_SPL_BUILD) || !defined(CONFIG_SPL_INIT_MINIMAL))
 void read_tlbcam_entry(int idx, u32 *valid, u32 *tsize, unsigned long *epn,
 		       phys_addr_t *rpn)
 {
@@ -221,7 +219,7 @@ int find_tlb_idx(void *addr, u8 tlbsel)
 }
 
 #ifdef CONFIG_ADDR_MAP
-int init_addr_map(void)
+void init_addr_map(void)
 {
 	int i;
 	unsigned int num_cam = mfspr(SPRN_TLB1CFG) & 0xfff;
@@ -237,7 +235,7 @@ int init_addr_map(void)
 			addrmap_set_entry(epn, rpn, TSIZE_TO_BYTES(tsize), i);
 	}
 
-	return 0;
+	return ;
 }
 #endif
 

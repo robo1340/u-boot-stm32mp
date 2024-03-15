@@ -11,8 +11,6 @@
  * ConnectController is used to setup partitions and to install the simple
  * file protocol.
  * A known file is read from the file system and verified.
- * The same block is read via the EFI_BLOCK_IO_PROTOCOL and compared to the file
- * contents.
  */
 
 #include <efi_selftest.h>
@@ -59,7 +57,7 @@ static u8 *image;
  * Reset service of the block IO protocol.
  *
  * @this	block IO protocol
- * Return:	status code
+ * @return	status code
  */
 static efi_status_t EFIAPI reset(
 			struct efi_block_io *this,
@@ -76,7 +74,7 @@ static efi_status_t EFIAPI reset(
  * @lba		start of the read in logical blocks
  * @buffer_size	number of bytes to read
  * @buffer	target buffer
- * Return:	status code
+ * @return	status code
  */
 static efi_status_t EFIAPI read_blocks(
 			struct efi_block_io *this, u32 media_id, u64 lba,
@@ -101,7 +99,7 @@ static efi_status_t EFIAPI read_blocks(
  * @lba		start of the write in logical blocks
  * @buffer_size	number of bytes to read
  * @buffer	source buffer
- * Return:	status code
+ * @return	status code
  */
 static efi_status_t EFIAPI write_blocks(
 			struct efi_block_io *this, u32 media_id, u64 lba,
@@ -122,7 +120,7 @@ static efi_status_t EFIAPI write_blocks(
  * Flush service of the block IO protocol.
  *
  * @this	block IO protocol
- * Return:	status code
+ * @return	status code
  */
 static efi_status_t EFIAPI flush_blocks(struct efi_block_io *this)
 {
@@ -133,7 +131,7 @@ static efi_status_t EFIAPI flush_blocks(struct efi_block_io *this)
  * Decompress the disk image.
  *
  * @image	decompressed disk image
- * Return:	status code
+ * @return	status code
  */
 static efi_status_t decompress(u8 **image)
 {
@@ -182,7 +180,7 @@ static efi_handle_t disk_handle;
  *
  * @handle:	handle of the loaded image
  * @systable:	system table
- * Return:	EFI_ST_SUCCESS for success
+ * @return:	EFI_ST_SUCCESS for success
  */
 static int setup(const efi_handle_t handle,
 		 const struct efi_system_table *systable)
@@ -242,7 +240,7 @@ static int setup(const efi_handle_t handle,
 /*
  * Tear down unit test.
  *
- * Return:	EFI_ST_SUCCESS for success
+ * @return:	EFI_ST_SUCCESS for success
  */
 static int teardown(void)
 {
@@ -280,7 +278,7 @@ static int teardown(void)
  * Get length of device path without end tag.
  *
  * @dp		device path
- * Return:	length of device path in bytes
+ * @return	length of device path in bytes
  */
 static efi_uintn_t dp_size(struct efi_device_path *dp)
 {
@@ -294,7 +292,7 @@ static efi_uintn_t dp_size(struct efi_device_path *dp)
 /*
  * Execute unit test.
  *
- * Return:	EFI_ST_SUCCESS for success
+ * @return:	EFI_ST_SUCCESS for success
  */
 static int execute(void)
 {
@@ -314,7 +312,6 @@ static int execute(void)
 	char buf[16] __aligned(ARCH_DMA_MINALIGN);
 	u32 part1_size;
 	u64 pos;
-	char block_io_aligned[1 << LB_BLOCK_SIZE] __aligned(1 << LB_BLOCK_SIZE);
 
 	/* Connect controller to virtual disk */
 	ret = boottime->connect_controller(disk_handle, NULL, NULL, 1);
@@ -410,7 +407,7 @@ static int execute(void)
 	}
 
 	/* Read file */
-	ret = root->open(root, &file, u"hello.txt", EFI_FILE_MODE_READ,
+	ret = root->open(root, &file, L"hello.txt", EFI_FILE_MODE_READ,
 			 0);
 	if (ret != EFI_SUCCESS) {
 		efi_st_error("Failed to open file\n");
@@ -452,33 +449,9 @@ static int execute(void)
 		return EFI_ST_FAILURE;
 	}
 
-	/*
-	 * Test that read_blocks() can read same file data.
-	 *
-	 * In the test data, the partition starts at block 1 and the file
-	 * hello.txt with the content 'Hello world!' is located at 0x5000
-	 * of the disk. Here we read block 0x27 (offset 0x4e00 of the
-	 * partition) and expect the string 'Hello world!' to be at the
-	 * start of block.
-	 */
-	ret = block_io_protocol->read_blocks(block_io_protocol,
-				      block_io_protocol->media->media_id,
-				      (0x5000 >> LB_BLOCK_SIZE) - 1,
-				      block_io_protocol->media->block_size,
-				      block_io_aligned);
-	if (ret != EFI_SUCCESS) {
-		efi_st_error("ReadBlocks failed\n");
-		return EFI_ST_FAILURE;
-	}
-
-	if (memcmp(block_io_aligned + 1, buf, 11)) {
-		efi_st_error("Unexpected block content\n");
-		return EFI_ST_FAILURE;
-	}
-
 #ifdef CONFIG_FAT_WRITE
 	/* Write file */
-	ret = root->open(root, &file, u"u-boot.txt", EFI_FILE_MODE_READ |
+	ret = root->open(root, &file, L"u-boot.txt", EFI_FILE_MODE_READ |
 			 EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0);
 	if (ret != EFI_SUCCESS) {
 		efi_st_error("Failed to open file\n");
@@ -510,7 +483,7 @@ static int execute(void)
 
 	/* Verify file */
 	boottime->set_mem(buf, sizeof(buf), 0);
-	ret = root->open(root, &file, u"u-boot.txt", EFI_FILE_MODE_READ,
+	ret = root->open(root, &file, L"u-boot.txt", EFI_FILE_MODE_READ,
 			 0);
 	if (ret != EFI_SUCCESS) {
 		efi_st_error("Failed to open file\n");

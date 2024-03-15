@@ -9,7 +9,6 @@
 #include <config.h>
 
 OUTPUT_ARCH(m68k)
-ENTRY(_start)
 
 #ifndef LDS_BOARD_TEXT
 #define LDS_BOARD_TEXT
@@ -60,8 +59,8 @@ SECTIONS
 	. = .;
 
 	. = ALIGN(4);
-	__u_boot_list : {
-		KEEP(*(SORT(__u_boot_list*)));
+	.u_boot_list : {
+		KEEP(*(SORT(.u_boot_list*)));
 	}
 
 	. = .;

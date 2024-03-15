@@ -11,6 +11,7 @@ import multiprocessing
 import os
 import re
 import sys
+import unittest
 
 # Bring in the patman libraries
 our_path = os.path.dirname(os.path.realpath(__file__))
@@ -26,34 +27,36 @@ from buildman import toolchain
 from patman import patchstream
 from patman import gitutil
 from patman import terminal
-from patman import test_util
 
-def RunTests(skip_net_tests, verboose, args):
-    from buildman import func_test
-    from buildman import test
+def RunTests(skip_net_tests):
+    import func_test
+    import test
     import doctest
 
-    test_name = args and args[0] or None
+    result = unittest.TestResult()
+    for module in ['buildman.toolchain', 'patman.gitutil']:
+        suite = doctest.DocTestSuite(module)
+        suite.run(result)
+
+    sys.argv = [sys.argv[0]]
     if skip_net_tests:
         test.use_network = False
+    for module in (test.TestBuild, func_test.TestFunctional):
+        suite = unittest.TestLoader().loadTestsFromTestCase(module)
+        suite.run(result)
 
-    # Run the entry tests first ,since these need to be the first to import the
-    # 'entry' module.
-    result = test_util.run_test_suites(
-        'buildman', False, verboose, False, None, test_name, [],
-        [test.TestBuild, func_test.TestFunctional,
-         'buildman.toolchain', 'patman.gitutil'])
+    print(result)
+    for test, err in result.errors:
+        print(err)
+    for test, err in result.failures:
+        print(err)
 
-    return (0 if result.wasSuccessful() else 1)
 
 options, args = cmdline.ParseArgs()
 
-if not options.debug:
-    sys.tracebacklimit = 0
-
 # Run our meagre tests
 if options.test:
-    RunTests(options.skip_net_tests, options.verbose, args)
+    RunTests(options.skip_net_tests)
 
 # Build selected commits for selected boards
 else:

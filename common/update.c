@@ -20,12 +20,14 @@
 
 #include <command.h>
 #include <env.h>
+#include <flash.h>
 #include <net.h>
 #include <net/tftp.h>
 #include <malloc.h>
 #include <mapmem.h>
 #include <dfu.h>
 #include <errno.h>
+#include <mtd/cfi_flash.h>
 
 #if defined(CONFIG_DFU_TFTP) || defined(CONFIG_UPDATE_TFTP)
 /* env variable holding the location of the update file */
@@ -47,8 +49,7 @@
 extern ulong tftp_timeout_ms;
 extern int tftp_timeout_count_max;
 #ifdef CONFIG_MTD_NOR_FLASH
-#include <flash.h>
-#include <mtd/cfi_flash.h>
+extern flash_info_t flash_info[];
 static uchar *saved_prot_info;
 #endif
 static int update_load(char *filename, ulong msec_max, int cnt_max, ulong addr)
@@ -111,12 +112,12 @@ static int update_flash_protect(int prot, ulong addr_first, ulong addr_last)
 
 	if (prot == 0) {
 		saved_prot_info =
-			calloc(CFI_FLASH_BANKS * CONFIG_SYS_MAX_FLASH_SECT, 1);
+			calloc(CONFIG_SYS_MAX_FLASH_BANKS * CONFIG_SYS_MAX_FLASH_SECT, 1);
 		if (!saved_prot_info)
 			return 1;
 	}
 
-	for (bank = 0; bank < CFI_FLASH_BANKS; ++bank) {
+	for (bank = 0; bank < CONFIG_SYS_MAX_FLASH_BANKS; ++bank) {
 		cnt = 0;
 		info = &flash_info[bank];
 

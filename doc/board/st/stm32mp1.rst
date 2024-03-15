@@ -6,7 +6,7 @@ STM32MP1xx boards
 
 This is a quick instruction for setup STMicroelectronics STM32MP1xx boards.
 
-Further information can be found in STMicroelectronics STM32 WIKI_.
+Futher information can be found in STMicrolectronics STM32 WIKI_.
 
 Supported devices
 -----------------
@@ -69,7 +69,7 @@ a Cortex-A frequency option:
  - D : Cortex-A7 @ 800 MHz
  - F : Secure Boot + HW Crypto + Cortex-A7 @ 800 MHz
 
-Currently the following STMIcroelectronics boards are supported:
+Currently the following boards are supported:
 
  + stm32mp157a-dk1.dts
  + stm32mp157a-ed1.dts
@@ -83,14 +83,6 @@ Currently the following STMIcroelectronics boards are supported:
  + stm32mp157f-dk2.dts
  + stm32mp157f-ed1.dts
  + stm32mp157f-ev1.dts
-
-These board with SCMI support are only managed with stm32mp15_defconfig,
-when the resources are secured with RCC_TZCR.TZEN=1 in OP-TEE. The access to
-these reset and clock resources are provided by OP-TEE and the associated SCMI
-services.
-
-Currently the following customer boards are supported:
-
  + stm32mp15xx-dhcor-avenger96.dts
 
 STM32MP13x
@@ -151,9 +143,6 @@ TF-A_ (BL2) initialize the DDR and loads the next stage binaries from a FIP file
    + BL33: a non-trusted firmware = U-Boot, running in normal world and uses
      the secure monitor to access to secure resources.
    + HW_CONFIG: The hardware configuration file = the U-Boot device tree
-
-The SCMI variant of each device tree is only support with OP-TEE as secure
-monitor, with stm32mp15_defconfig.
 
 The **Basic** boot chain with SPL (for STM32MP15x)
 ``````````````````````````````````````````````````
@@ -410,7 +399,7 @@ the boot pin values = BOOT0, BOOT1, BOOT2
   | SPI-NAND    |  1      |  1      |  1      |
   +-------------+---------+---------+---------+
 
-- on the STM32MP15x **daughter board ed1 = MB1263** with the switch SW1
+- on the STM32MP15x **daugther board ed1 = MB1263** with the switch SW1
 - on STM32MP15x **Avenger96** with switch S3 (NOR and SPI-NAND are not applicable)
 - on board STM32MP15x **DK1/DK2** with the switch SW1 = BOOT0, BOOT2
   with only 2 pins available (BOOT1 is forced to 0 and NOR not supported),
@@ -486,8 +475,7 @@ or:
   +-------+--------+---------+------------------------+------------------------+
 
 And the 4th partition (Rootfs) is marked bootable with a file extlinux.conf
-following the Generic Distribution feature (see :doc:`../../develop/distro` for
-use).
+following the Generic Distribution feature (doc/README.distro for use).
 
 The size of fip or ssbl partition must be enough for the associated binary file,
 4MB and 2MB are default values.
@@ -597,7 +585,7 @@ MAC Address
 Please read doc/README.enetaddr for the implementation guidelines for mac id
 usage. Basically, environment has precedence over board specific storage.
 
-For STMicroelectronics board, it is retrieved in:
+For STMicroelectonics board, it is retrieved in:
 
  - STM32MP15x OTP:
 

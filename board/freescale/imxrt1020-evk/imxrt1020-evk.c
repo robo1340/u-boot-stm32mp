@@ -13,7 +13,6 @@
 #include <asm/global_data.h>
 #include <asm/io.h>
 #include <asm/armv7m.h>
-#include <serial.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -71,6 +70,11 @@ u32 spl_boot_device(void)
 	return BOOT_DEVICE_MMC1;
 }
 #endif
+
+u32 get_board_rev(void)
+{
+	return 0;
+}
 
 int board_init(void)
 {

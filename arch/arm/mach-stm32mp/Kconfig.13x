@@ -1,10 +1,10 @@
-if STM32MP13X
+if STM32MP13x
 
 choice
 	prompt "STM32MP13x board select"
 	optional
 
-config TARGET_ST_STM32MP13X
+config TARGET_ST_STM32MP13x
 	bool "STMicroelectronics STM32MP13x boards"
 	imply BOOTSTAGE
 	imply CMD_BOOTSTAGE

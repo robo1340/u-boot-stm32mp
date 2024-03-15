@@ -231,4 +231,5 @@ int rproc_optee_close(struct rproc_optee *trproc)
 	trproc->session = 0;
 
 	return 0;
+
 }

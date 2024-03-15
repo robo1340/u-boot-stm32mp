@@ -178,7 +178,7 @@ int default_print_cpuinfo(void)
 	return 0;
 }
 
-#if CONFIG_IS_ENABLED(SHOW_BOOT_PROGRESS)
+#if CONFIG_IS_ENABLED(BOOTSTAGE)
 void show_boot_progress(int val)
 {
 	outb(val, POST_PORT);

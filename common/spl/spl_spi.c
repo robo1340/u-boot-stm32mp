@@ -16,15 +16,15 @@
 #include <errno.h>
 #include <spl.h>
 #include <asm/global_data.h>
-#include <dm/ofnode.h>
 
-#if CONFIG_IS_ENABLED(OS_BOOT)
+DECLARE_GLOBAL_DATA_PTR;
+
+#ifdef CONFIG_SPL_OS_BOOT
 /*
  * Load the kernel, check for a valid header we can parse, and if found load
  * the kernel and then device tree.
  */
 static int spi_load_image_os(struct spl_image_info *spl_image,
-			     struct spl_boot_device *bootdev,
 			     struct spi_flash *flash,
 			     struct image_header *header)
 {
@@ -37,7 +37,7 @@ static int spi_load_image_os(struct spl_image_info *spl_image,
 	if (image_get_magic(header) != IH_MAGIC)
 		return -1;
 
-	err = spl_parse_image_header(spl_image, bootdev, header);
+	err = spl_parse_image_header(spl_image, header);
 	if (err)
 		return err;
 
@@ -71,16 +71,6 @@ unsigned int __weak spl_spi_get_uboot_offs(struct spi_flash *flash)
 	return CONFIG_SYS_SPI_U_BOOT_OFFS;
 }
 
-u32 __weak spl_spi_boot_bus(void)
-{
-	return CONFIG_SF_DEFAULT_BUS;
-}
-
-u32 __weak spl_spi_boot_cs(void)
-{
-	return CONFIG_SF_DEFAULT_CS;
-}
-
 /*
  * The main entry for SPI booting. It's necessary that SDRAM is already
  * configured and available since this code loads the main U-Boot image
@@ -93,15 +83,15 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 	unsigned int payload_offs;
 	struct spi_flash *flash;
 	struct image_header *header;
-	unsigned int sf_bus = spl_spi_boot_bus();
-	unsigned int sf_cs = spl_spi_boot_cs();
 
 	/*
 	 * Load U-Boot image from SPI flash into RAM
 	 * In DM mode: defaults speed and mode will be
 	 * taken from DT when available
 	 */
-	flash = spi_flash_probe(sf_bus, sf_cs,
+
+	flash = spi_flash_probe(CONFIG_SF_DEFAULT_BUS,
+				CONFIG_SF_DEFAULT_CS,
 				CONFIG_SF_DEFAULT_SPEED,
 				CONFIG_SF_DEFAULT_MODE);
 	if (!flash) {
@@ -113,13 +103,14 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 
 	header = spl_get_load_buffer(-sizeof(*header), sizeof(*header));
 
-	if (CONFIG_IS_ENABLED(OF_REAL)) {
-		payload_offs = ofnode_conf_read_int("u-boot,spl-payload-offset",
-						    payload_offs);
-	}
+#if CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)
+	payload_offs = fdtdec_get_config_int(gd->fdt_blob,
+					     "u-boot,spl-payload-offset",
+					     payload_offs);
+#endif
 
-#if CONFIG_IS_ENABLED(OS_BOOT)
-	if (spl_start_uboot() || spi_load_image_os(spl_image, bootdev, flash, header))
+#ifdef CONFIG_SPL_OS_BOOT
+	if (spl_start_uboot() || spi_load_image_os(spl_image, flash, header))
 #endif
 	{
 		/* Load u-boot, mkimage header is 64 bytes. */
@@ -138,7 +129,7 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 					     (void *)CONFIG_SYS_LOAD_ADDR);
 			if (err)
 				return err;
-			err = spl_parse_image_header(spl_image, bootdev,
+			err = spl_parse_image_header(spl_image,
 					(struct image_header *)CONFIG_SYS_LOAD_ADDR);
 		} else if (IS_ENABLED(CONFIG_SPL_LOAD_FIT) &&
 			   image_get_magic(header) == FDT_MAGIC) {
@@ -165,17 +156,12 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
 			err = spl_load_imx_container(spl_image, &load,
 						     payload_offs);
 		} else {
-			err = spl_parse_image_header(spl_image, bootdev, header);
+			err = spl_parse_image_header(spl_image, header);
 			if (err)
 				return err;
 			err = spi_flash_read(flash, payload_offs + spl_image->offset,
 					     spl_image->size,
 					     (void *)spl_image->load_addr);
-		}
-		if (IS_ENABLED(CONFIG_SPI_FLASH_SOFT_RESET)) {
-			err = spi_nor_remove(flash);
-			if (err)
-				return err;
 		}
 	}
 

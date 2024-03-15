@@ -38,7 +38,7 @@ static LIST_HEAD(disk_partitions);
  * @param str - pointer to string
  * @param env - pointer to pointer to extracted env
  *
- * Return: - zero on successful expand and env is set
+ * @return - zero on successful expand and env is set
  */
 static int extract_env(const char *str, char **env)
 {
@@ -97,7 +97,7 @@ static int extract_env(const char *str, char **env)
  * @param str - pointer to string with key=values pairs
  * @param key - pointer to the key to search for
  *
- * Return: - pointer to allocated string with the value
+ * @return - pointer to allocated string with the value
  */
 static char *extract_val(const char *str, const char *key)
 {
@@ -134,7 +134,7 @@ static char *extract_val(const char *str, const char *key)
  * @param str - pointer to string with key
  * @param key - pointer to the key to search for
  *
- * Return: - true on found key
+ * @return - true on found key
  */
 static bool found_key(const char *str, const char *key)
 {
@@ -403,7 +403,7 @@ static int do_get_gpt_info(struct blk_desc *dev_desc, char * const namestr)
  * @param partitions - pointer to pointer to allocated partitions array
  * @param parts_count - number of partitions
  *
- * Return: - zero on success, otherwise error
+ * @return - zero on success, otherwise error
  *
  */
 static int set_gpt_info(struct blk_desc *dev_desc,
@@ -584,15 +584,6 @@ err:
 	free(parts);
 
 	return errno;
-}
-
-static int gpt_repair(struct blk_desc *blk_dev_desc)
-{
-	int ret = 0;
-
-	ret = gpt_repair_headers(blk_dev_desc);
-
-	return ret;
 }
 
 static int gpt_default(struct blk_desc *blk_dev_desc, const char *str_part)
@@ -978,7 +969,7 @@ static int do_rename_gpt_parts(struct blk_desc *dev_desc, char *subcomm,
  * @param argc
  * @param argv
  *
- * Return: zero on success; otherwise error
+ * @return zero on success; otherwise error
  */
 static int do_gpt(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 {
@@ -1006,10 +997,7 @@ static int do_gpt(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 		return CMD_RET_FAILURE;
 	}
 
-	if (strcmp(argv[1], "repair") == 0) {
-		printf("Repairing GPT: ");
-		ret = gpt_repair(blk_dev_desc);
-	} else if ((strcmp(argv[1], "write") == 0) && (argc == 5)) {
+	if ((strcmp(argv[1], "write") == 0) && (argc == 5)) {
 		printf("Writing GPT: ");
 		ret = gpt_default(blk_dev_desc, argv[4]);
 	} else if ((strcmp(argv[1], "verify") == 0)) {
@@ -1048,8 +1036,6 @@ U_BOOT_CMD(gpt, CONFIG_SYS_MAXARGS, 1, do_gpt,
 	" Restore or verify GPT information on a device connected\n"
 	" to interface\n"
 	" Example usage:\n"
-	" gpt repair mmc 0\n"
-	"    - repair the GPT on the device\n"
 	" gpt write mmc 0 $partitions\n"
 	"    - write the GPT to device\n"
 	" gpt verify mmc 0 $partitions\n"

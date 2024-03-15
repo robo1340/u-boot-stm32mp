@@ -300,7 +300,7 @@ static void stm32prog_serial_putc(u8 w_byte)
 }
 
 /* Helper function ************************************************/
-static u8 stm32prog_start(struct stm32prog_data *data, uintptr_t address)
+static u8 stm32prog_start(struct stm32prog_data *data, u32 address)
 {
 	u8 ret = 0;
 	struct dfu_entity *dfu_entity;
@@ -353,7 +353,7 @@ static u8 stm32prog_start(struct stm32prog_data *data, uintptr_t address)
 	} else {
 		void (*entry)(void) = (void *)address;
 
-		printf("## Starting application at 0x%p ...\n", (void *)address);
+		printf("## Starting application at 0x%x ...\n", address);
 		(*entry)();
 		printf("## Application terminated\n");
 		ret = -ENOEXEC;
@@ -366,11 +366,11 @@ static u8 stm32prog_start(struct stm32prog_data *data, uintptr_t address)
  * get_address() - Get address if it is valid
  *
  * @tmp_xor:		Current xor value to update
- * Return: The address area
+ * @return The address area
  */
-static uintptr_t get_address(u8 *tmp_xor)
+static u32 get_address(u8 *tmp_xor)
 {
-	uintptr_t address = 0x0;
+	u32 address = 0x0;
 	u8 data;
 
 	data = stm32prog_serial_getc();
@@ -462,7 +462,7 @@ static void get_phase_command(struct stm32prog_data *data)
 		length = strlen(err_msg);
 	}
 	if (phase == PHASE_FLASHLAYOUT)
-		destination = CONFIG_SYS_LOAD_ADDR;
+		destination = STM32_DDR_BASE;
 
 	stm32prog_serial_putc(length + 5);           /* Total length */
 	stm32prog_serial_putc(phase & 0xFF);         /* partition ID */
@@ -487,7 +487,7 @@ static void get_phase_command(struct stm32prog_data *data)
  */
 static void read_memory_command(struct stm32prog_data *data)
 {
-	uintptr_t address = 0x0;
+	u32 address = 0x0;
 	u8 rcv_data = 0x0, tmp_xor = 0x0;
 	u32 counter = 0x0;
 
@@ -532,7 +532,7 @@ static void read_memory_command(struct stm32prog_data *data)
  */
 static void start_command(struct stm32prog_data *data)
 {
-	uintptr_t address = 0;
+	u32 address = 0;
 	u8 tmp_xor = 0x0;
 	u8 ret, rcv_data;
 
@@ -546,7 +546,8 @@ static void start_command(struct stm32prog_data *data)
 		return;
 	}
 	/* validate partition */
-	ret = stm32prog_start(data, address);
+	ret = stm32prog_start(data,
+			      address);
 
 	if (ret)
 		stm32prog_serial_result(ABORT_BYTE);
@@ -790,7 +791,7 @@ error:
  * stm32prog_serial_loop() - USART bootloader Loop routine
  *
  * @data:		Current command context
- * Return: true if reset is needed after loop
+ * @return true if reset is needed after loop
  */
 bool stm32prog_serial_loop(struct stm32prog_data *data)
 {

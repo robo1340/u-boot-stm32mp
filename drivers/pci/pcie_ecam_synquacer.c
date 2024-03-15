@@ -235,8 +235,10 @@ static int pci_synquacer_ecam_conf_address(const struct udevice *bus,
 	void *addr;
 
 	addr = pcie->cfg_base;
-	addr += PCIE_ECAM_OFFSET(PCI_BUS(bdf) - pcie->first_busno,
-				 PCI_DEV(bdf), PCI_FUNC(bdf), offset);
+	addr += (PCI_BUS(bdf) - pcie->first_busno) << 20;
+	addr += PCI_DEV(bdf) << 15;
+	addr += PCI_FUNC(bdf) << 12;
+	addr += offset;
 	*paddress = addr;
 
 	return 0;

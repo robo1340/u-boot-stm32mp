@@ -74,9 +74,6 @@
 #define PLL_INFF_MIN_RATE	19200000 /* in Hz */
 #define PLL_INFF_MAX_RATE	38400000 /* in Hz */
 
-/* USBPHYC_CLK48 */
-#define USBPHYC_CLK48_FREQ	48000000 /* in Hz */
-
 enum boosting_vals {
 	BOOST_1000_UA = 1000,
 	BOOST_2000_UA = 2000,
@@ -637,7 +634,7 @@ struct stm32_usbphyc_clk {
 
 static ulong stm32_usbphyc_clk48_get_rate(struct clk *clk)
 {
-	return USBPHYC_CLK48_FREQ;
+	return 48000000;
 }
 
 static int stm32_usbphyc_clk48_enable(struct clk *clk)

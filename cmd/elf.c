@@ -14,7 +14,7 @@
 #include <net.h>
 #include <vxworks.h>
 #ifdef CONFIG_X86
-#include <vesa.h>
+#include <vbe.h>
 #include <asm/cache.h>
 #include <asm/e820.h>
 #include <linux/linkage.h>
@@ -41,6 +41,7 @@ int do_bootelf(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	unsigned long addr; /* Address of the ELF image */
 	unsigned long rc; /* Return value from user code */
 	char *sload = NULL;
+	const char *ep = env_get("autostart");
 	int rcode = 0;
 
 	/* Consume 'bootelf' */
@@ -68,7 +69,7 @@ int do_bootelf(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	else
 		addr = load_elf_image_shdr(addr);
 
-	if (!env_get_autostart())
+	if (ep && !strcmp(ep, "no"))
 		return rcode;
 
 	printf("## Starting application at 0x%08lx ...\n", addr);

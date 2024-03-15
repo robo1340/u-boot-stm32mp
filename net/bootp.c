@@ -31,7 +31,7 @@
 
 /*
  * The timeout for the initial BOOTP/DHCP request used to be described by a
- * counter of fixed-length timeout periods. CONFIG_NET_RETRY_COUNT represents
+ * counter of fixed-length timeout periods. TIMEOUT_COUNT represents
  * that counter
  *
  * Now that the timeout periods are variable (exponential backoff and retry)
@@ -39,7 +39,12 @@
  * execute that many retries, and keep sending retry packets until that time
  * is reached.
  */
-#define TIMEOUT_MS	((3 + (CONFIG_NET_RETRY_COUNT * 5)) * 1000)
+#ifndef CONFIG_NET_RETRY_COUNT
+# define TIMEOUT_COUNT	5		/* # of timeouts before giving up */
+#else
+# define TIMEOUT_COUNT	(CONFIG_NET_RETRY_COUNT)
+#endif
+#define TIMEOUT_MS	((3 + (TIMEOUT_COUNT * 5)) * 1000)
 
 #define PORT_BOOTPS	67		/* BOOTP server UDP port */
 #define PORT_BOOTPC	68		/* BOOTP client UDP port */
@@ -59,7 +64,7 @@ ulong		bootp_start;
 ulong		bootp_timeout;
 char net_nis_domain[32] = {0,}; /* Our NIS domain */
 char net_hostname[32] = {0,}; /* Our hostname */
-char net_root_path[CONFIG_BOOTP_MAX_ROOT_PATH_LEN] = {0,}; /* Our bootpath */
+char net_root_path[64] = {0,}; /* Our bootpath */
 
 static ulong time_taken_max;
 
@@ -143,11 +148,9 @@ static int check_reply_packet(uchar *pkt, unsigned dest, unsigned src,
 
 static void store_bootp_params(struct bootp_hdr *bp)
 {
+#if !defined(CONFIG_BOOTP_SERVERIP)
 	struct in_addr tmp_ip;
 	bool overwrite_serverip = true;
-
-	if (IS_ENABLED(CONFIG_BOOTP_SERVERIP))
-		return;
 
 #if defined(CONFIG_BOOTP_PREFER_SERVERIP)
 	overwrite_serverip = false;
@@ -176,6 +179,7 @@ static void store_bootp_params(struct bootp_hdr *bp)
 	 */
 	if (*net_boot_file_name)
 		env_set("bootfile", net_boot_file_name);
+#endif
 }
 
 /*
@@ -643,7 +647,7 @@ static int bootp_extended(u8 *e)
 	*e++ = (576 - 312 + OPT_FIELD_SIZE) & 0xff;
 #endif
 
-	e = add_vci(e);
+	add_vci(e);
 
 #if defined(CONFIG_BOOTP_SUBNETMASK)
 	*e++ = 1;		/* Subnet mask request */
@@ -1033,6 +1037,9 @@ static void dhcp_send_request_packet(struct bootp_hdr *bp_offer)
 	bcast_ip.s_addr = 0xFFFFFFFFL;
 	net_set_udp_header(iphdr, bcast_ip, PORT_BOOTPS, PORT_BOOTPC, iplen);
 
+#ifdef CONFIG_BOOTP_DHCP_REQUEST_DELAY
+	udelay(CONFIG_BOOTP_DHCP_REQUEST_DELAY);
+#endif	/* CONFIG_BOOTP_DHCP_REQUEST_DELAY */
 	debug("Transmitting DHCPREQUEST packet: len = %d\n", pktlen);
 	net_send_packet(net_tx_packet, pktlen);
 }

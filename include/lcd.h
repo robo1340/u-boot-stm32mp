@@ -40,7 +40,10 @@ ulong lcd_setmem(ulong addr);
  */
 void lcd_set_flush_dcache(int flush);
 
-#if defined(CONFIG_ATMEL_LCD) || defined(CONFIG_ATMEL_HLCD)
+#if defined(CONFIG_CPU_PXA25X) || defined(CONFIG_CPU_PXA27X) || \
+	defined CONFIG_CPU_MONAHANS
+#include <pxa_lcd.h>
+#elif defined(CONFIG_ATMEL_LCD) || defined(CONFIG_ATMEL_HLCD)
 #include <atmel_lcd.h>
 #elif defined(CONFIG_EXYNOS_FB)
 #include <exynos_lcd.h>
@@ -73,42 +76,42 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y);
 /**
  * Get the width of the LCD in pixels
  *
- * Return: width of LCD in pixels
+ * @return width of LCD in pixels
  */
 int lcd_get_pixel_width(void);
 
 /**
  * Get the height of the LCD in pixels
  *
- * Return: height of LCD in pixels
+ * @return height of LCD in pixels
  */
 int lcd_get_pixel_height(void);
 
 /**
  * Get the number of text lines/rows on the LCD
  *
- * Return: number of rows
+ * @return number of rows
  */
 int lcd_get_screen_rows(void);
 
 /**
  * Get the number of text columns on the LCD
  *
- * Return: number of columns
+ * @return number of columns
  */
 int lcd_get_screen_columns(void);
 
 /**
  * Get the background color of the LCD
  *
- * Return: background color value
+ * @return background color value
  */
 int lcd_getbgcolor(void);
 
 /**
  * Get the foreground color of the LCD
  *
- * Return: foreground color value
+ * @return foreground color value
  */
 int lcd_getfgcolor(void);
 

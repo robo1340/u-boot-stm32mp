@@ -61,11 +61,6 @@
 #define UCR3_AWAKEN	(1<<4)  /* Async wake interrupt enable */
 #define UCR3_REF25	(1<<3)  /* Ref freq 25 MHz */
 #define UCR3_REF30	(1<<2)  /* Ref Freq 30 MHz */
-
-/* imx8 names these bitsfields instead: */
-#define UCR3_DTRDEN	BIT(3)  /* bit not used in this chip */
-#define UCR3_RXDMUXSEL	BIT(2)  /* RXD muxed input selected; 'should always be set' */
-
 #define UCR3_INVT	(1<<1)  /* Inverted Infrared transmission */
 #define UCR3_BPEN	(1<<0)  /* Preset registers enable */
 #define UCR4_CTSTL_32	(32<<10) /* CTS trigger level (32 chars) */
@@ -181,14 +176,6 @@ static void _mxc_serial_setbrg(struct mxc_uart *base, unsigned long clk,
 
 	writel(UCR2_WS | UCR2_IRTS | UCR2_RXEN | UCR2_TXEN | UCR2_SRST,
 	       &base->cr2);
-
-	/*
-	 * setting the baudrate triggers a reset, returning cr3 to its
-	 * reset value but UCR3_RXDMUXSEL "should always be set."
-	 * according to the imx8 reference-manual
-	 */
-	writel(readl(&base->cr3) | UCR3_RXDMUXSEL, &base->cr3);
-
 	writel(UCR1_UARTEN, &base->cr1);
 }
 
@@ -311,7 +298,7 @@ static int mxc_serial_putc(struct udevice *dev, const char ch)
 	struct mxc_serial_plat *plat = dev_get_plat(dev);
 	struct mxc_uart *const uart = plat->reg;
 
-	if (readl(&uart->ts) & UTS_TXFULL)
+	if (!(readl(&uart->ts) & UTS_TXEMPTY))
 		return -EAGAIN;
 
 	writel(ch, &uart->txd);
@@ -385,7 +372,7 @@ U_BOOT_DRIVER(serial_mxc) = {
 
 static inline void _debug_uart_init(void)
 {
-	struct mxc_uart *base = (struct mxc_uart *)CONFIG_VAL(DEBUG_UART_BASE);
+	struct mxc_uart *base = (struct mxc_uart *)CONFIG_DEBUG_UART_BASE;
 
 	_mxc_serial_init(base, false);
 	_mxc_serial_setbrg(base, CONFIG_DEBUG_UART_CLOCK,
@@ -394,7 +381,7 @@ static inline void _debug_uart_init(void)
 
 static inline void _debug_uart_putc(int ch)
 {
-	struct mxc_uart *base = (struct mxc_uart *)CONFIG_VAL(DEBUG_UART_BASE);
+	struct mxc_uart *base = (struct mxc_uart *)CONFIG_DEBUG_UART_BASE;
 
 	while (!(readl(&base->ts) & UTS_TXEMPTY))
 		WATCHDOG_RESET();

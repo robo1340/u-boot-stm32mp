@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR BSD-3-Clause
 /*
- * Copyright (C) 2022, STMicroelectronics - All Rights Reserved
+ * Copyright (C) STMicroelectronics 2021 - All Rights Reserved
  */
 
 #include "stm32mp13-u-boot.dtsi"
@@ -8,6 +8,7 @@
 / {
 	aliases {
 		mmc0 = &sdmmc1;
+		usb0 = &usbotg_hs;
 	};
 
 	config {
@@ -24,6 +25,32 @@
 			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpioa 13 GPIO_ACTIVE_LOW>;
 			default-state = "off";
+		};
+	};
+};
+
+&adc_1 {
+	status = "okay";
+};
+
+&panel_rgb {
+	compatible = "rocktech,rk043fn48h","simple-panel";
+
+	display-timings {
+		timing@0 {
+			clock-frequency = <10000000>;
+			hactive = <480>;
+			vactive = <272>;
+			hfront-porch = <10>;
+			hback-porch = <10>;
+			hsync-len = <52>;
+			vfront-porch = <10>;
+			vback-porch = <10>;
+			vsync-len = <10>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <1>;
+			pixelclk-active = <1>;
 		};
 	};
 };

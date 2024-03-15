@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later OR BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
  * Copyright (C) 2021, STMicroelectronics - All Rights Reserved
  */
@@ -236,17 +236,6 @@ u32 get_cpu_rev(void)
 	return (read_idc() & DBGMCU_IDC_REV_ID_MASK) >> DBGMCU_IDC_REV_ID_SHIFT;
 }
 
-/* Get Device Part Number (RPN) from OTP */
-static u32 get_cpu_rpn(void)
-{
-	return get_otp(BSEC_OTP_RPN, RPN_SHIFT, RPN_MASK);
-}
-
-u32 get_cpu_type(void)
-{
-	return (get_cpu_dev() << 16) | get_cpu_rpn();
-}
-
 int get_eth_nb(void)
 {
 	return 1;
@@ -266,7 +255,7 @@ static const char * const soc_type[] = {
 };
 
 static const char * const soc_pkg[] = { "??", "AD", "AC", "AB", "AA" };
-static const char * const soc_rev[] = { "?", "A", "B", "Z", "Y"};
+static const char * const soc_rev[] = { "?", "A", "B", "Z" };
 
 static void get_cpu_string_offsets(unsigned int *type, unsigned int *pkg,
 				   unsigned int *rev)
@@ -306,9 +295,6 @@ static void get_cpu_string_offsets(unsigned int *type, unsigned int *pkg,
 		break;
 	case CPU_REV2_1:
 		*rev = 3;
-		break;
-	case CPU_REV2_2:
-		*rev = 4;
 		break;
 	default:
 		*rev = 0;

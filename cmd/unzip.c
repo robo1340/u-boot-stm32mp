@@ -8,7 +8,6 @@
 #include <command.h>
 #include <env.h>
 #include <gzip.h>
-#include <mapmem.h>
 #include <part.h>
 
 static int do_unzip(struct cmd_tbl *cmdtp, int flag, int argc,
@@ -29,8 +28,7 @@ static int do_unzip(struct cmd_tbl *cmdtp, int flag, int argc,
 			return CMD_RET_USAGE;
 	}
 
-	if (gunzip(map_sysmem(dst, dst_len), dst_len, map_sysmem(src, 0),
-		   &src_len) != 0)
+	if (gunzip((void *) dst, dst_len, (void *) src, &src_len) != 0)
 		return 1;
 
 	printf("Uncompressed size: %lu = 0x%lX\n", src_len, src_len);

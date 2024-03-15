@@ -13,8 +13,6 @@ from binman.etype.section import Entry_section
 from dtoc import fdt_util
 from patman import tools
 
-# This is imported if needed
-state = None
 
 class Entry_files(Entry_section):
     """A set of files arranged in a section
@@ -48,8 +46,8 @@ class Entry_files(Entry_section):
         self._require_matches = fdt_util.GetBool(self._node,
                                                 'require-matches')
 
-    def gen_entries(self):
-        files = tools.get_input_filename_glob(self._pattern)
+    def ExpandEntries(self):
+        files = tools.GetInputFilenameGlob(self._pattern)
         if self._require_matches and not files:
             self.Raise("Pattern '%s' matched no files" % self._pattern)
         for fname in files:
@@ -66,4 +64,4 @@ class Entry_files(Entry_section):
                 state.AddInt(subnode, 'align', self._files_align)
 
         # Read entries again, now that we have some
-        self.ReadEntries()
+        self._ReadEntries()

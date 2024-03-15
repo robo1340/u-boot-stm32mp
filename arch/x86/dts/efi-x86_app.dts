@@ -25,8 +25,4 @@
 		compatible = "efi,reset";
 		u-boot,dm-pre-reloc;
 	};
-	efi-fb {
-		compatible = "efi-fb";
-	};
-
 };

@@ -74,7 +74,7 @@ struct power_domain {
  *
  * @dev:	The client device.
  * @power_domain	A pointer to a power domain struct to initialize.
- * Return: 0 if OK, or a negative error code.
+ * @return 0 if OK, or a negative error code.
  */
 #if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_get(struct udevice *dev, struct power_domain *power_domain);
@@ -93,7 +93,7 @@ int power_domain_get(struct udevice *dev, struct power_domain *power_domain)
  * @power_domain:	A pointer to a power domain struct to initialize.
  * @index:		Power domain index to be powered on.
  *
- * Return: 0 if OK, or a negative error code.
+ * @return 0 if OK, or a negative error code.
  */
 #if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_get_by_index(struct udevice *dev,
@@ -108,32 +108,11 @@ int power_domain_get_by_index(struct udevice *dev,
 #endif
 
 /**
- * power_domain_get_by_name - Get the named power domain for a device.
- *
- * @dev:		The client device.
- * @power_domain:	A pointer to a power domain struct to initialize.
- * @name:		Power domain name to be powered on.
- *
- * Return: 0 if OK, or a negative error code.
- */
-#if CONFIG_IS_ENABLED(POWER_DOMAIN)
-int power_domain_get_by_name(struct udevice *dev,
-			     struct power_domain *power_domain, const char *name);
-#else
-static inline
-int power_domain_get_by_name(struct udevice *dev,
-			     struct power_domain *power_domain, const char *name)
-{
-	return -ENOSYS;
-}
-#endif
-
-/**
  * power_domain_free - Free a previously requested power domain.
  *
  * @power_domain:	A power domain struct that was previously successfully
  *		requested by power_domain_get().
- * Return: 0 if OK, or a negative error code.
+ * @return 0 if OK, or a negative error code.
  */
 #if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_free(struct power_domain *power_domain);
@@ -149,7 +128,7 @@ static inline int power_domain_free(struct power_domain *power_domain)
  *
  * @power_domain:	A power domain struct that was previously successfully
  *		requested by power_domain_get().
- * Return: 0 if OK, or a negative error code.
+ * @return 0 if OK, or a negative error code.
  */
 #if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_on(struct power_domain *power_domain);
@@ -165,7 +144,7 @@ static inline int power_domain_on(struct power_domain *power_domain)
  *
  * @power_domain:	A power domain struct that was previously successfully
  *		requested by power_domain_get().
- * Return: 0 if OK, or a negative error code.
+ * @return 0 if OK, or a negative error code.
  */
 #if CONFIG_IS_ENABLED(POWER_DOMAIN)
 int power_domain_off(struct power_domain *power_domain);
@@ -181,9 +160,10 @@ static inline int power_domain_off(struct power_domain *power_domain)
  *
  * @dev:		The client device.
  *
- * Return: 0 if OK, or a negative error code.
+ * @return 0 if OK, or a negative error code.
  */
-#if CONFIG_IS_ENABLED(OF_REAL) && CONFIG_IS_ENABLED(POWER_DOMAIN)
+#if (CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)) && \
+	CONFIG_IS_ENABLED(POWER_DOMAIN)
 int dev_power_domain_on(struct udevice *dev);
 #else
 static inline int dev_power_domain_on(struct udevice *dev)
@@ -197,9 +177,10 @@ static inline int dev_power_domain_on(struct udevice *dev)
  *
  * @dev:		The client device.
  *
- * Return: 0 if OK, or a negative error code.
+ * @return 0 if OK, or a negative error code.
  */
-#if CONFIG_IS_ENABLED(OF_REAL) && CONFIG_IS_ENABLED(POWER_DOMAIN)
+#if (CONFIG_IS_ENABLED(OF_CONTROL) && !CONFIG_IS_ENABLED(OF_PLATDATA)) && \
+	CONFIG_IS_ENABLED(POWER_DOMAIN)
 int dev_power_domain_off(struct udevice *dev);
 #else
 static inline int dev_power_domain_off(struct udevice *dev)

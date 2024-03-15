@@ -10,7 +10,5 @@ F:	configs/stm32mp13_defconfig
 F:	configs/stm32mp15_defconfig
 F:	configs/stm32mp15_basic_defconfig
 F:	configs/stm32mp15_trusted_defconfig
-F:	include/configs/stm32mp13_common.h
-F:	include/configs/stm32mp13_st_common.h
 F:	include/configs/stm32mp15_common.h
 F:	include/configs/stm32mp15_st_common.h

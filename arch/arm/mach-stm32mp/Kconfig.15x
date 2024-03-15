@@ -1,6 +1,6 @@
-if STM32MP15X
+if STM32MP15x
 
-config STM32MP15X_STM32IMAGE
+config STM32MP15x_STM32IMAGE
 	bool "Support STM32 image for generated U-Boot image"
 	depends on TFABOOT
 	help
@@ -11,7 +11,7 @@ choice
 	prompt "STM32MP15x board select"
 	optional
 
-config TARGET_ST_STM32MP15X
+config TARGET_ST_STM32MP15x
 	bool "STMicroelectronics STM32MP15x boards"
 	imply BOOTSTAGE
 	imply CMD_BOOTSTAGE
@@ -92,7 +92,6 @@ config SPL_STM32MP15_PWR
 	help
 		This config enables implementation of driver-model pmic and
 		regulator uclass features for access to STM32MP15x PWR in SPL.
-
 config SYS_TEXT_BASE
 	default 0xC0100000
 
@@ -117,7 +116,7 @@ endif
 if DEBUG_UART
 
 config DEBUG_UART_BOARD_INIT
-	default y if SPL
+	default y
 
 # debug on UART4 by default
 config DEBUG_UART_BASE

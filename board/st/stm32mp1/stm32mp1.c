@@ -25,6 +25,7 @@
 #include <log.h>
 #include <malloc.h>
 #include <misc.h>
+#include <mtd_node.h>
 #include <net.h>
 #include <netdev.h>
 #include <phy.h>
@@ -41,13 +42,13 @@
 #include <asm/arch/sys_proto.h>
 #include <dm/device.h>
 #include <dm/device-internal.h>
-#include <dm/ofnode.h>
 #include <jffs2/load_kernel.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/iopoll.h>
 #include <power/regulator.h>
+#include <tee/optee.h>
 #include <usb/dwc2_udc.h>
 
 /* SYSCFG registers */
@@ -77,6 +78,11 @@
 #define GOODIX_REG_ID		0x8140
 #define GOODIX_ID_LEN		4
 
+/*
+ * Get a global data pointer
+ */
+DECLARE_GLOBAL_DATA_PTR;
+
 #define USB_LOW_THRESHOLD_UV		200000
 #define USB_WARNING_LOW_THRESHOLD_UV	660000
 #define USB_START_LOW_THRESHOLD_UV	1230000
@@ -98,7 +104,7 @@ int checkboard(void)
 	int fdt_compat_len;
 
 	if (IS_ENABLED(CONFIG_TFABOOT)) {
-		if (IS_ENABLED(CONFIG_STM32MP15X_STM32IMAGE))
+		if (IS_ENABLED(CONFIG_STM32MP15x_STM32IMAGE))
 			mode = "trusted - stm32image";
 		else
 			mode = "trusted";
@@ -106,8 +112,8 @@ int checkboard(void)
 		mode = "basic";
 	}
 
-	fdt_compat = ofnode_get_property(ofnode_root(), "compatible",
-					 &fdt_compat_len);
+	fdt_compat = fdt_getprop(gd->fdt_blob, 0, "compatible",
+				 &fdt_compat_len);
 
 	log_info("Board: stm32mp1 in %s mode (%s)\n", mode,
 		 fdt_compat && fdt_compat_len ? fdt_compat : "");
@@ -248,10 +254,10 @@ int g_dnl_bind_fixup(struct usb_device_descriptor *dev, const char *name)
 
 static int get_led(struct udevice **dev, char *led_string)
 {
-	const char *led_name;
+	char *led_name;
 	int ret;
 
-	led_name = ofnode_conf_read_str(led_string);
+	led_name = fdtdec_get_config_string(gd->fdt_blob, led_string);
 	if (!led_name) {
 		log_debug("could not find %s config string\n", led_string);
 		return -ENOENT;
@@ -609,9 +615,18 @@ error:
 	return ret;
 }
 
+static bool board_is_stm32mp13x_dk(void)
+{
+	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP13x) &&
+	     of_machine_is_compatible("st,stm32mp135f-dk"))
+		return true;
+
+	return false;
+}
+
 static bool board_is_stm32mp15x_dk2(void)
 {
-	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP15X) &&
+	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP15x) &&
 	    (of_machine_is_compatible("st,stm32mp157c-dk2") ||
 	     of_machine_is_compatible("st,stm32mp157f-dk2")))
 		return true;
@@ -621,7 +636,7 @@ static bool board_is_stm32mp15x_dk2(void)
 
 static bool board_is_stm32mp15x_ev1(void)
 {
-	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP15X) &&
+	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP15x) &&
 	    (of_machine_is_compatible("st,stm32mp157a-ev1") ||
 	     of_machine_is_compatible("st,stm32mp157c-ev1") ||
 	     of_machine_is_compatible("st,stm32mp157d-ev1") ||
@@ -819,9 +834,26 @@ static void board_stm32mp15x_ev1_init(void)
 	bind_driver(drv, path);
 }
 
+static void board_stm32mp13x_dk_init(void)
+{
+	struct udevice *dev;
+
+	/* configure IRQ line on DK for touchscreen before LCD reset */
+	uclass_get_device_by_driver(UCLASS_NOP, DM_DRIVER_GET(goodix), &dev);
+}
+
 /* board dependent setup after realloc */
 int board_init(void)
 {
+	struct udevice *dev;
+	int ret;
+
+	/* probe RCC to avoid circular access with usbphyc probe as clk provider */
+	if (IS_ENABLED(CONFIG_CLK_STM32MP13)) {
+		ret = uclass_get_device_by_driver(UCLASS_CLK, DM_DRIVER_GET(stm32mp1_clock), &dev);
+		log_debug("Clock init failed: %d\n", ret);
+	}
+
 	board_key_check();
 
 	regulators_enable_boot_on(_DEBUG);
@@ -832,6 +864,9 @@ int board_init(void)
 	 */
 	if (IS_ENABLED(CONFIG_ARMV7_NONSEC))
 		sysconf_init();
+
+	if (CONFIG_IS_ENABLED(LED))
+		led_default_state();
 
 	setup_led(LEDST_ON);
 
@@ -849,6 +884,9 @@ int board_late_init(void)
 	char dtb_name[256];
 	int buf_len;
 
+	if (board_is_stm32mp13x_dk())
+		board_stm32mp13x_dk_init();
+
 	if (board_is_stm32mp15x_ev1())
 		board_stm32mp15x_ev1_init();
 
@@ -856,8 +894,8 @@ int board_late_init(void)
 		board_stm32mp15x_dk2_init();
 
 	if (IS_ENABLED(CONFIG_ENV_VARS_UBOOT_RUNTIME_CONFIG)) {
-		fdt_compat = ofnode_get_property(ofnode_root(), "compatible",
-						 &fdt_compat_len);
+		fdt_compat = fdt_getprop(gd->fdt_blob, 0, "compatible",
+					 &fdt_compat_len);
 		if (fdt_compat && fdt_compat_len) {
 			if (strncmp(fdt_compat, "st,", 3) != 0) {
 				env_set("board_name", fdt_compat);
@@ -1131,6 +1169,216 @@ int mmc_get_env_dev(void)
 }
 
 #if defined(CONFIG_OF_BOARD_SETUP)
+
+/* update scmi nodes with information provided by SP-MIN */
+void stm32mp15_fdt_update_scmi_node(void *new_blob)
+{
+	ofnode node;
+	int nodeoff = 0;
+	const char *name;
+	u32 val;
+	int ret;
+
+	nodeoff = fdt_path_offset(new_blob, "/firmware/scmi");
+	if (nodeoff < 0)
+		return;
+
+	/* search scmi node in U-Boot device tree */
+	node = ofnode_path("/firmware/scmi");
+	if (!ofnode_valid(node)) {
+		log_warning("node not found");
+		return;
+	}
+	if (!ofnode_device_is_compatible(node, "arm,scmi-smc")) {
+		name = ofnode_get_property(node, "compatible", NULL);
+		log_warning("invalid compatible %s", name);
+		return;
+	}
+
+	/* read values updated by TF-A SP-MIN */
+	ret = ofnode_read_u32(node, "arm,smc-id", &val);
+	if (ret) {
+		log_warning("arm,smc-id missing");
+		return;
+	}
+	/* update kernel node */
+	fdt_setprop_string(new_blob, nodeoff, "compatible", "arm,scmi-smc");
+	fdt_delprop(new_blob, nodeoff, "linaro,optee-channel-id");
+	fdt_setprop_u32(new_blob, nodeoff, "arm,smc-id", val);
+}
+
+/*
+ * update the device tree to support boot with SP-MIN, using a device tree
+ * containing OPTE nodes:
+ * 1/ remove the OP-TEE related nodes
+ * 2/ copy SCMI nodes to kernel device tree to replace the OP-TEE agent
+ *
+ * SP-MIN boot is supported for STM32MP15 and it uses the SCMI SMC agent
+ * whereas Linux device tree defines an SCMI OP-TEE agent.
+ *
+ * This function allows to temporary support this legacy boot mode,
+ * with SP-MIN and without OP-TEE.
+ */
+void stm32mp15_fdt_update_optee_nodes(void *new_blob)
+{
+	ofnode node;
+	int nodeoff = 0, subnodeoff;
+
+	/* only proceed if /firmware/optee node is not present in U-Boot DT */
+	node = ofnode_path("/firmware/optee");
+	if (ofnode_valid(node)) {
+		log_debug("OP-TEE firmware found, nothing to do");
+		return;
+	}
+
+	/* remove OP-TEE memory regions in reserved-memory node */
+	nodeoff = fdt_path_offset(new_blob, "/reserved-memory");
+	if (nodeoff >= 0) {
+		fdt_for_each_subnode(subnodeoff, new_blob, nodeoff) {
+			const char *name = fdt_get_name(new_blob, subnodeoff, NULL);
+
+			/* only handle "optee" reservations */
+			if (name && !strncmp(name, "optee", 5))
+				fdt_del_node(new_blob, subnodeoff);
+		}
+	}
+
+	/* remove OP-TEE node  */
+	nodeoff = fdt_path_offset(new_blob, "/firmware/optee");
+	if (nodeoff >= 0)
+		fdt_del_node(new_blob, nodeoff);
+
+	/* update the scmi node */
+	stm32mp15_fdt_update_scmi_node(new_blob);
+}
+
+/* Galaxycore GC2145 sensor detection */
+static const struct udevice_id galaxycore_gc2145_ids[] = {
+	{ .compatible = "galaxycore,gc2145", },
+	{ }
+};
+
+U_BOOT_DRIVER(galaxycore_gc2145) = {
+	.name		= "galaxycore_gc2145",
+	.id		= UCLASS_I2C_GENERIC,
+	.of_match	= galaxycore_gc2145_ids,
+};
+
+#define GC2145_ID_REG_OFF	0xF0
+#define GC2145_ID	0x2145
+static bool stm32mp13x_is_gc2145_detected(void)
+{
+	struct udevice *dev, *bus, *supply;
+	struct dm_i2c_chip *chip;
+	struct gpio_desc gpio;
+	bool gpio_found = false;
+	bool gc2145_detected = false;
+	u16 id;
+	int ret;
+
+	/* Check if the GC2145 sensor is found */
+	ret = uclass_get_device_by_driver(UCLASS_I2C_GENERIC, DM_DRIVER_GET(galaxycore_gc2145),
+					  &dev);
+	if (ret)
+		return false;
+
+	/*
+	 * In order to get access to the sensor we need to enable regulators
+	 * and disable powerdown GPIO
+	 */
+	ret = device_get_supply_regulator(dev, "IOVDD-supply", &supply);
+	if (!ret && supply)
+		regulator_autoset(supply);
+
+	/* Request the powerdown GPIO */
+	ret = gpio_request_by_name(dev, "powerdown-gpios", 0, &gpio, GPIOD_IS_OUT);
+	if (!ret) {
+		gpio_found = true;
+		dm_gpio_set_value(&gpio, 0);
+	}
+
+	/* Wait a bit so that the device become visible on I2C */
+	mdelay(10);
+
+	bus = dev_get_parent(dev);
+
+	/* Probe the i2c device */
+	chip = dev_get_parent_plat(dev);
+	ret = dm_i2c_probe(bus, chip->chip_addr, 0, &dev);
+	if (ret)
+		goto out;
+
+	/* Read the value at 0xF0 - 0xF1 */
+	ret = dm_i2c_read(dev, GC2145_ID_REG_OFF, (uint8_t *)&id, sizeof(id));
+	if (ret)
+		goto out;
+
+	/* Check ID values - if GC2145 then nothing to do */
+	gc2145_detected = (be16_to_cpu(id) == GC2145_ID);
+
+out:
+	if (gpio_found) {
+		dm_gpio_set_value(&gpio, 1);
+		dm_gpio_free(NULL, &gpio);
+	}
+
+	return gc2145_detected;
+}
+
+void stm32mp13x_dk_fdt_update(void *new_blob)
+{
+	int nodeoff_gc2145 = 0, nodeoff_ov5640 = 0;
+	int nodeoff_ov5640_ep = 0, nodeoff_stmipi_ep = 0;
+	int phandle_ov5640_ep, phandle_stmipi_ep;
+
+	if (stm32mp13x_is_gc2145_detected())
+		return;
+
+	/*
+	 * By default the DT is written with GC2145 enabled.  If it isn't
+	 * detected, disable it within the DT and instead enable the OV5640
+	 */
+	nodeoff_gc2145 = fdt_path_offset(new_blob, "/soc/i2c@4c006000/gc2145@3c");
+	if (nodeoff_gc2145 < 0) {
+		log_err("gc2145@3c node not found - DT update aborted\n");
+		return;
+	}
+	fdt_setprop_string(new_blob, nodeoff_gc2145, "status", "disabled");
+
+	nodeoff_ov5640 = fdt_path_offset(new_blob, "/soc/i2c@4c006000/camera@3c");
+	if (nodeoff_ov5640 < 0) {
+		log_err("camera@3c node not found - DT update aborted\n");
+		return;
+	}
+	fdt_setprop_string(new_blob, nodeoff_ov5640, "status", "okay");
+
+	nodeoff_ov5640_ep = fdt_path_offset(new_blob, "/soc/i2c@4c006000/camera@3c/port/endpoint");
+	if (nodeoff_ov5640_ep < 0) {
+		log_err("camera@3c/port/endpoint node not found - DT update aborted\n");
+		return;
+	}
+
+	phandle_ov5640_ep = fdt_get_phandle(new_blob, nodeoff_ov5640_ep);
+
+	nodeoff_stmipi_ep =
+		fdt_path_offset(new_blob, "/soc/i2c@4c006000/stmipi@14/ports/port@0/endpoint");
+	if (nodeoff_stmipi_ep < 0) {
+		log_err("stmipi@14/ports/port@0/endpoint node not found - DT update aborted\n");
+		return;
+	}
+
+	fdt_setprop_u32(new_blob, nodeoff_stmipi_ep, "remote-endpoint", phandle_ov5640_ep);
+
+	/*
+	 * The OV5640 endpoint doesn't have remote-endpoint property in order to avoid
+	 * a device-tree warning due to non birectionnal graph connection.
+	 * When enabling the OV5640, add the remote-endpoint property as well, pointing
+	 * to the stmipi endpoint
+	 */
+	phandle_stmipi_ep = fdt_get_phandle(new_blob, nodeoff_stmipi_ep);
+	fdt_setprop_u32(new_blob, nodeoff_ov5640_ep, "remote-endpoint", phandle_stmipi_ep);
+}
+
 void stm32mp15x_dk2_fdt_update(void *new_blob)
 {
 	struct udevice *dev;
@@ -1146,9 +1394,9 @@ void stm32mp15x_dk2_fdt_update(void *new_blob)
 
 	ret = dm_i2c_probe(bus, 0x38, 0, &dev);
 	if (ret < 0) {
-		nodeoff = fdt_node_offset_by_compatible(new_blob, -1, "focaltech,ft6236");
+		nodeoff = fdt_path_offset(new_blob, "/soc/i2c@40012000/touchscreen@38");
 		if (nodeoff < 0) {
-			log_warning("touchscreen@38 node not found\n");
+			log_warning("touchscreen@2a node not found\n");
 		} else {
 			fdt_set_name(new_blob, nodeoff, "touchscreen@2a");
 			fdt_setprop_u32(new_blob, nodeoff, "reg", 0x2a);
@@ -1184,10 +1432,29 @@ void fdt_update_panel_dsi(void *new_blob)
 
 int ft_board_setup(void *blob, struct bd_info *bd)
 {
-	fdt_copy_fixed_partitions(blob);
+	static const struct node_info nodes[] = {
+		{ "jedec,spi-nor",		MTD_DEV_TYPE_NOR,  },
+		{ "spi-nand",			MTD_DEV_TYPE_SPINAND},
+		{ "st,stm32mp15-fmc2",		MTD_DEV_TYPE_NAND, },
+		{ "st,stm32mp1-fmc2-nfc",	MTD_DEV_TYPE_NAND, },
+	};
+	char *boot_device;
+
+	/* Check the boot-source and don't update MTD for serial or usb boot */
+	boot_device = env_get("boot_device");
+	if (!boot_device ||
+	    (strcmp(boot_device, "serial") && strcmp(boot_device, "usb")))
+		if (IS_ENABLED(CONFIG_FDT_FIXUP_PARTITIONS))
+			fdt_fixup_mtdparts(blob, nodes, ARRAY_SIZE(nodes));
 
 	if (CONFIG_IS_ENABLED(FDT_SIMPLEFB))
 		fdt_simplefb_enable_and_mem_rsv(blob);
+
+	if (CONFIG_IS_ENABLED(TARGET_ST_STM32MP15x))
+		stm32mp15_fdt_update_optee_nodes(blob);
+
+	if (board_is_stm32mp13x_dk())
+		stm32mp13x_dk_fdt_update(blob);
 
 	if (board_is_stm32mp15x_dk2())
 		stm32mp15x_dk2_fdt_update(blob);

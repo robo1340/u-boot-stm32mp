@@ -35,26 +35,23 @@ class Entry_blob(Entry):
         super().__init__(section, etype, node)
         self._filename = fdt_util.GetString(self._node, 'filename', self.etype)
 
-    def ObtainContents(self, fake_size=0):
+    def ObtainContents(self):
         self._filename = self.GetDefaultFilename()
-        self._pathname = tools.get_input_filename(self._filename,
+        self._pathname = tools.GetInputFilename(self._filename,
             self.external and self.section.GetAllowMissing())
         # Allow the file to be missing
         if not self._pathname:
-            self._pathname, faked = self.check_fake_fname(self._filename,
-                                                          fake_size)
+            self.SetContents(b'')
             self.missing = True
-            if not faked:
-                self.SetContents(b'')
-                return True
+            return True
 
         self.ReadBlobContents()
         return True
 
-    def ReadFileContents(self, pathname):
+    def ReadBlobContents(self):
         """Read blob contents into memory
 
-        This function compresses the data before returning if needed.
+        This function compresses the data before storing if needed.
 
         We assume the data is small enough to fit into memory. If this
         is used for large filesystem image that might not be true.
@@ -62,23 +59,13 @@ class Entry_blob(Entry):
         new Entry method which can read in chunks. Then we could copy
         the data in chunks and avoid reading it all at once. For now
         this seems like an unnecessary complication.
-
-        Args:
-            pathname (str): Pathname to read from
-
-        Returns:
-            bytes: Data read
         """
         state.TimingStart('read')
-        indata = tools.read_file(pathname)
+        indata = tools.ReadFile(self._pathname)
         state.TimingAccum('read')
         state.TimingStart('compress')
         data = self.CompressData(indata)
         state.TimingAccum('compress')
-        return data
-
-    def ReadBlobContents(self):
-        data = self.ReadFileContents(self._pathname)
         self.SetContents(data)
         return True
 
@@ -88,14 +75,3 @@ class Entry_blob(Entry):
     def ProcessContents(self):
         # The blob may have changed due to WriteSymbols()
         return self.ProcessContentsUpdate(self.data)
-
-    def CheckFakedBlobs(self, faked_blobs_list):
-        """Check if any entries in this section have faked external blobs
-
-        If there are faked blobs, the entries are added to the list
-
-        Args:
-            fake_blobs_list: List of Entry objects to be added to
-        """
-        if self.faked:
-            faked_blobs_list.append(self)

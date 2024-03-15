@@ -1,20 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
 
-"""
-Utility code shared across multiple tests.
-"""
+# Utility code shared across multiple tests.
 
 import hashlib
 import inspect
 import os
 import os.path
-import pathlib
+import pytest
 import signal
 import sys
 import time
 import re
-import pytest
 
 def md5sum_data(data):
     """Calculate the MD5 hash of some data.
@@ -51,7 +48,7 @@ def md5sum_file(fn, max_length=None):
         data = fh.read(*params)
     return md5sum_data(data)
 
-class PersistentRandomFile:
+class PersistentRandomFile(object):
     """Generate and store information about a persistent file containing
     random data."""
 
@@ -147,7 +144,7 @@ def wait_until_file_open_fails(fn, ignore_errors):
         Nothing.
     """
 
-    for _ in range(100):
+    for i in range(100):
         fh = attempt_to_open_file(fn)
         if not fh:
             return
@@ -157,7 +154,7 @@ def wait_until_file_open_fails(fn, ignore_errors):
         return
     raise Exception('File can still be opened')
 
-def run_and_log(u_boot_console, cmd, ignore_errors=False, stdin=None):
+def run_and_log(u_boot_console, cmd, ignore_errors=False):
     """Run a command and log its output.
 
     Args:
@@ -169,7 +166,6 @@ def run_and_log(u_boot_console, cmd, ignore_errors=False, stdin=None):
             will simply return if the command cannot be executed or exits with
             an error code, otherwise an exception will be raised if such
             problems occur.
-        stdin: Input string to pass to the command as stdin (or None)
 
     Returns:
         The output as a string.
@@ -177,7 +173,7 @@ def run_and_log(u_boot_console, cmd, ignore_errors=False, stdin=None):
     if isinstance(cmd, str):
         cmd = cmd.split()
     runner = u_boot_console.log.get_runner(cmd[0], sys.stdout)
-    output = runner.run(cmd, ignore_errors=ignore_errors, stdin=stdin)
+    output = runner.run(cmd, ignore_errors=ignore_errors)
     runner.close()
     return output
 
@@ -196,9 +192,9 @@ def run_and_log_expect_exception(u_boot_console, cmd, retcode, msg):
     try:
         runner = u_boot_console.log.get_runner(cmd[0], sys.stdout)
         runner.run(cmd)
-    except Exception:
-        assert retcode == runner.exit_status
-        assert msg in runner.output
+    except Exception as e:
+        assert(retcode == runner.exit_status)
+        assert(msg in runner.output)
     else:
         raise Exception("Expected an exception with retcode %d message '%s',"
                         "but it was not raised" % (retcode, msg))
@@ -283,17 +279,17 @@ class PersistentFileHelperCtxMgr(object):
             if filename_timestamp < self.module_timestamp:
                 self.log.action('Removing stale generated file ' +
                     self.filename)
-                pathlib.Path(self.filename).unlink()
+                os.unlink(self.filename)
 
     def __exit__(self, extype, value, traceback):
         if extype:
             try:
-                pathlib.Path(self.filename).unlink()
-            except Exception:
+                os.path.unlink(self.filename)
+            except:
                 pass
             return
         logged = False
-        for _ in range(20):
+        for i in range(20):
             filename_timestamp = os.path.getmtime(self.filename)
             if filename_timestamp > self.module_timestamp:
                 break

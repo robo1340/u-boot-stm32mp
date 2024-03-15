@@ -10,7 +10,6 @@
 #include <command.h>
 #include <cros_ec.h>
 #include <dm.h>
-#include <event.h>
 #include <init.h>
 #include <log.h>
 #include <sysinfo.h>
@@ -33,12 +32,11 @@ struct cros_gpio_info {
 	int flags;
 };
 
-static int coral_check_ll_boot(void *ctx, struct event *event)
+int misc_init_f(void)
 {
 	if (!ll_boot_init()) {
 		printf("Running as secondary loader");
-		if (CONFIG_IS_ENABLED(COREBOOT_SYSINFO) &&
-		    gd->arch.coreboot_table) {
+		if (gd->arch.coreboot_table) {
 			int ret;
 
 			printf(" (found coreboot table at %lx)",
@@ -57,7 +55,6 @@ static int coral_check_ll_boot(void *ctx, struct event *event)
 
 	return 0;
 }
-EVENT_SPY(EVT_MISC_INIT_F, coral_check_ll_boot);
 
 int arch_misc_init(void)
 {
@@ -101,7 +98,7 @@ static int get_memconfig(struct udevice *dev)
  *     EC              - reading from the EC (backup)
  *
  * @dev: sysinfo device to use
- * Return: SKU ID, or -ve error if not found
+ * @return SKU ID, or -ve error if not found
  */
 static int get_skuconfig(struct udevice *dev)
 {
@@ -303,7 +300,7 @@ struct sysinfo_ops coral_sysinfo_ops = {
 	.get_str	= coral_get_str,
 };
 
-#if CONFIG_IS_ENABLED(OF_REAL)
+#if !CONFIG_IS_ENABLED(OF_PLATDATA)
 static const struct udevice_id coral_ids[] = {
 	{ .compatible = "google,coral" },
 	{ }

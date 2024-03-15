@@ -22,7 +22,6 @@
 
 	config-DDR_MEM_COMPATIBLE {
 		u-boot,dm-pre-reloc;
-
 		compatible = __stringify(st,DDR_MEM_COMPATIBLE);
 
 		st,mem-name = DDR_MEM_NAME;

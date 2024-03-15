@@ -102,3 +102,4 @@ U_BOOT_CMD(versal, 4, 1, do_versal,
 	   "versal sub-system",
 	   versal_help_text
 )
+
